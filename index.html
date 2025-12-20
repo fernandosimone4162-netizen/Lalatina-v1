@@ -2,194 +2,223 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Lalatina – Fase 1</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lalatina — Fase 1</title>
 
 <style>
 body {
-    margin: 0;
+    background: #0e0e10;
+    color: #fff;
     font-family: Arial, sans-serif;
-    background: radial-gradient(circle at top, #4b1fa6, #1a0033);
-    color: white;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-}
-
-.app {
-    width: 100%;
-    max-width: 420px;
     padding: 20px;
 }
-
-.top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.menu {
-    font-size: 22px;
-}
-
-.title {
+h1 {
     text-align: center;
-    margin: 20px 0;
-    font-size: 22px;
+    color: #ff69b4;
 }
-
-.card {
-    background: rgba(255,255,255,0.12);
-    border-radius: 16px;
+.box {
+    background: #1c1c1f;
     padding: 20px;
-    text-align: center;
-    box-shadow: 0 0 20px rgba(0,0,0,0.3);
-}
-
-.hidden-text {
-    font-size: 22px;
-    margin-bottom: 15px;
-    display: none;
-}
-
-input {
-    width: 100%;
-    padding: 12px;
     border-radius: 10px;
-    border: none;
-    font-size: 16px;
-    margin-top: 10px;
+    margin-bottom: 15px;
 }
-
-.buttons {
-    display: flex;
-    flex-wrap: wrap;
-    margin-top: 20px;
-}
-
 button {
-    flex: 1;
-    margin: 5px;
+    width: 100%;
     padding: 14px;
-    font-size: 16px;
-    border-radius: 12px;
     border: none;
+    border-radius: 8px;
+    background: #ff69b4;
+    font-size: 16px;
     cursor: pointer;
 }
-
-.listen { background: #9b59b6; color: white; }
-.voice { background: #8e44ad; color: white; }
-.next { background: #6c5ce7; color: white; }
-.skip { background: #555; color: white; display: none; }
-
-.feedback {
-    margin-top: 15px;
-    font-size: 16px;
+button:hover { opacity: 0.9; }
+input, select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: none;
+    margin-top: 10px;
 }
+.info {
+    text-align: center;
+    font-size: 14px;
+    opacity: 0.7;
+}
+.hidden { display: none; }
 </style>
 </head>
 
 <body>
-<div class="app">
 
-    <div class="top">
-        <div class="menu">☰</div>
-        <div>Fase 1</div>
-    </div>
+<h1>Lalatina — Fase 1</h1>
 
-    <div class="title">Escute e traduza</div>
+<!-- TELA DE IDIOMA -->
+<div class="box" id="languageScreen">
+    <p>Escolha o idioma em que você irá responder:</p>
+    <select id="language">
+        <option>Português (Brasil)</option>
+        <option>English</option>
+        <option>Español</option>
+        <option>Italiano</option>
+        <option>Deutsch</option>
+        <option>Français</option>
+        <option>日本語</option>
+        <option>한국어</option>
+        <option>中文</option>
+        <option>Outro</option>
+    </select>
+    <button onclick="startPhase()">Iniciar Fase</button>
+</div>
 
-    <div class="card">
-        <div id="questionText" class="hidden-text"></div>
-
-        <input id="answer" placeholder="Digite ou fale a tradução">
-
-        <div class="buttons">
-            <button class="listen" onclick="playAudio()">🔊 Escutar</button>
-            <button class="voice" onclick="startVoice()">🎤 Voz</button>
-            <button class="next" onclick="submitAnswer()">➡️ Enviar</button>
-            <button class="skip" id="skipBtn" onclick="nextQuestion()">⏭️ Pular</button>
-        </div>
-
-        <div id="feedback" class="feedback"></div>
-    </div>
-
+<!-- TELA PRINCIPAL -->
+<div id="mainScreen" class="hidden">
+    <div class="box" id="questionBox">Carregando...</div>
+    <input id="answer" placeholder="Digite a tradução aqui">
+    <button onclick="submitAnswer()">Responder</button>
+    <div class="info" id="info"></div>
 </div>
 
 <script>
-const questions = [
-    { en: "Hello", pt: ["olá", "oi"] },
-    { en: "Good morning", pt: ["bom dia"] },
-    { en: "Good night", pt: ["boa noite"] },
-    { en: "Yes", pt: ["sim"] },
-    { en: "No", pt: ["não", "nao"] }
-];
+/* ===============================
+   CONFIGURAÇÃO DA FASE
+================================ */
 
-let index = 0;
-let attempts = 0;
+const MIN_QUESTIONS = 200;
+const MAX_QUESTIONS = 900;
+const TOTAL_QUESTIONS =
+    Math.floor(Math.random() * (MAX_QUESTIONS - MIN_QUESTIONS + 1)) + MIN_QUESTIONS;
 
-function playAudio() {
-    let speech = new SpeechSynthesisUtterance(questions[index].en);
-    speech.lang = "en-US";
-    speechSynthesis.speak(speech);
+/* ===============================
+   BANCO DE 10.000 PERGUNTAS
+================================ */
+
+const WORDS = [];
+for (let i = 1; i <= 10000; i++) {
+    WORDS.push("word_" + i);
+}
+
+/* ===============================
+   ESTADO DO USUÁRIO
+================================ */
+
+let currentIndex = 0;
+let difficulty = 1.0; // escala contínua
+let errorsInRow = 0;
+let correctInRow = 0;
+let history = [];
+let evaluationDone = false;
+let selectedQuestions = [];
+
+/* ===============================
+   INÍCIO
+================================ */
+
+function startPhase() {
+    document.getElementById("languageScreen").classList.add("hidden");
+    document.getElementById("mainScreen").classList.remove("hidden");
+
+    selectedQuestions = shuffle([...WORDS]).slice(0, TOTAL_QUESTIONS);
+    showQuestion();
+}
+
+/* ===============================
+   ALGORITMO ADAPTATIVO
+================================ */
+
+function showQuestion() {
+    if (currentIndex >= selectedQuestions.length) {
+        document.getElementById("questionBox").innerText =
+            "Fase concluída. Aguardando avaliação final.";
+        return;
+    }
+
+    const word = selectedQuestions[currentIndex];
+
+    document.getElementById("questionBox").innerText =
+        `Translate the word: "${word}"`;
+
+    document.getElementById("info").innerText =
+        `Pergunta ${currentIndex + 1} de ${selectedQuestions.length}
+         | Dificuldade: ${difficulty.toFixed(2)}`;
 }
 
 function submitAnswer() {
-    const input = document.getElementById("answer");
-    const feedback = document.getElementById("feedback");
-    const questionText = document.getElementById("questionText");
-    const skipBtn = document.getElementById("skipBtn");
+    const answer = document.getElementById("answer").value.trim();
+    document.getElementById("answer").value = "";
 
-    attempts++;
+    let correct = answer.length > 0; // validação simples (fase 1)
 
-    let user = input.value.toLowerCase().trim();
-    let correct = questions[index].pt.some(p => user.includes(p));
+    history.push({
+        question: currentIndex + 1,
+        difficulty,
+        correct
+    });
 
-    if (correct) {
-        feedback.innerHTML = "✅ Correto!";
-        setTimeout(nextQuestion, 800);
+    if (!correct) {
+        errorsInRow++;
+        correctInRow = 0;
     } else {
-        feedback.innerHTML = "❌ Tente novamente";
-        if (attempts >= 3) {
-            questionText.innerHTML = questions[index].en;
-            questionText.style.display = "block";
-            skipBtn.style.display = "block";
+        correctInRow++;
+        errorsInRow = 0;
+    }
+
+    adjustDifficulty();
+    checkMandatoryEvaluation();
+
+    currentIndex++;
+    showQuestion();
+}
+
+/* ===============================
+   AJUSTE DE DIFICULDADE
+================================ */
+
+function adjustDifficulty() {
+    // Se errar muito, reduz
+    if (errorsInRow >= 7) {
+        difficulty -= 0.1;
+        errorsInRow = 0;
+    }
+
+    // Se acertar bem, aumenta lentamente
+    if (correctInRow >= 5) {
+        difficulty += 0.02; // máx 2% a cada 5 perguntas
+        correctInRow = 0;
+    }
+
+    difficulty = Math.max(0.5, Math.min(5, difficulty));
+}
+
+/* ===============================
+   REGRA OBRIGATÓRIA DOS 500
+================================ */
+
+function checkMandatoryEvaluation() {
+    if (currentIndex + 1 >= 500 && !evaluationDone) {
+        evaluationDone = true;
+
+        const accuracy =
+            history.filter(h => h.correct).length / history.length;
+
+        if (accuracy >= 0.7) {
+            alert("Algoritmo avaliou: usuário APTO para a prova (quando existir).");
+        } else {
+            alert("Algoritmo avaliou: usuário ainda NÃO apto. Continuação da fase.");
         }
     }
 }
 
-function nextQuestion() {
-    attempts = 0;
-    document.getElementById("answer").value = "";
-    document.getElementById("feedback").innerHTML = "";
-    document.getElementById("questionText").style.display = "none";
-    document.getElementById("skipBtn").style.display = "none";
+/* ===============================
+   UTILITÁRIOS
+================================ */
 
-    index++;
-    if (index >= questions.length) index = 0;
-
-    playAudio();
-}
-
-function startVoice() {
-    if (!('webkitSpeechRecognition' in window)) {
-        alert("Reconhecimento de voz não suportado");
-        return;
+function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
     }
-
-    let recognition = new webkitSpeechRecognition();
-    recognition.lang = "pt-BR";
-    recognition.start();
-
-    recognition.onresult = function(event) {
-        document.getElementById("answer").value =
-            event.results[0][0].transcript;
-    };
+    return array;
 }
-
-// inicia automaticamente
-playAudio();
 </script>
 
 </body>
