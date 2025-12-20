@@ -1,205 +1,201 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Lalatina — Fase 1</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lalatina</title>
+
 <style>
 body {
-    font-family: Arial, sans-serif;
-    background: #0e1621;
-    color: #fff;
-    margin: 0;
-    padding: 0;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: #fff;
 }
-.container {
-    max-width: 600px;
-    margin: auto;
-    padding: 20px;
+
+.screen {
+  display: none;
+  padding: 20px;
 }
-.card {
-    background: #1c2733;
-    padding: 20px;
-    border-radius: 12px;
+
+.screen.active {
+  display: block;
 }
-.question-box {
-    font-size: 22px;
-    margin-bottom: 20px;
-    min-height: 60px;
+
+h1, h2 {
+  text-align: center;
 }
-.answer-input {
-    width: 100%;
-    padding: 12px;
-    font-size: 18px;
-    border-radius: 8px;
-    border: none;
-}
-.answer-input.correct { background: #2e7d32; color: #fff; }
-.answer-input.wrong { background: #c62828; color: #fff; }
 
 button {
-    margin-top: 12px;
-    padding: 12px;
-    width: 100%;
-    font-size: 18px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-}
-button.primary { background: #2979ff; color: #fff; }
-button.secondary { background: #455a64; color: #fff; }
-.hidden { display: none; }
-
-.progress {
-    margin: 10px 0;
-    font-size: 14px;
+  width: 100%;
+  padding: 16px;
+  margin-top: 14px;
+  font-size: 18px;
+  border: none;
+  border-radius: 12px;
+  background: #2563eb;
+  color: #fff;
 }
 
-.explain-box {
-    background: #263238;
-    padding: 15px;
-    border-radius: 10px;
-    margin-top: 15px;
+button:active {
+  background: #1e40af;
+}
+
+input {
+  width: 100%;
+  padding: 16px;
+  font-size: 18px;
+  border-radius: 12px;
+  border: none;
+  margin-top: 14px;
+}
+
+.feedback {
+  margin-top: 14px;
+  text-align: center;
+}
+
+.hidden {
+  display: none;
 }
 </style>
 </head>
 
 <body>
-<div class="container">
-    <div class="card">
-        <div class="progress" id="progress"></div>
 
-        <div class="question-box" id="questionText"></div>
+<!-- HOME -->
+<div class="screen active" id="home">
+  <h1>Lalatina</h1>
+  <p style="text-align:center">Aprenda idiomas ouvindo primeiro.</p>
+  <button onclick="start()">Começar</button>
+</div>
 
-        <input id="answerInput" class="answer-input" placeholder="Type your answer">
+<!-- FASE 1 -->
+<div class="screen" id="phase">
+  <h2>Fase 1</h2>
 
-        <button class="primary" id="submitBtn">Answer</button>
-        <button class="secondary hidden" id="nextBtn">Next Question</button>
-        <button class="secondary hidden" id="skipBtn">Skip</button>
+  <div id="questionText" class="hidden"></div>
 
-        <div class="explain-box hidden" id="explainBox">
-            <p><b>Verb: TO BE</b></p>
-            <p>I am = Eu sou / estou</p>
-            <p>You are = Você é / está</p>
-            <p>He / She / It is = Ele / Ela / Isso é</p>
-            <p>We are = Nós somos</p>
-            <p>They are = Eles são</p>
-            <button class="primary" id="speakBtn">🔊 Ouvir explicação</button>
-            <button class="secondary hidden" id="pauseBtn">⏸ Pausar</button>
-        </div>
-    </div>
+  <button onclick="playAudio()">🔊 Ouvir pergunta</button>
+
+  <input id="answer" placeholder="Digite a tradução">
+  <button onclick="submit()">Responder</button>
+
+  <div class="feedback" id="feedback"></div>
+</div>
+
+<!-- PROVA -->
+<div class="screen" id="exam">
+  <h2>Prova</h2>
+  <p id="examQuestion"></p>
+  <input id="examAnswer" placeholder="Tradução">
+  <button onclick="sendExam()">Enviar</button>
+  <div class="feedback" id="examFeedback"></div>
+</div>
+
+<!-- RESULTADO -->
+<div class="screen" id="result">
+  <h2 id="resultTitle"></h2>
+  <p id="resultText"></p>
 </div>
 
 <script>
-// ================= BANCO DE PERGUNTAS =================
-const TOTAL_PHASE_QUESTIONS = 10000;
-const MAX_PHASE_QUESTIONS = 500;
+const questions = [
+  { en: "Good morning", pt: ["bom dia"] },
+  { en: "How are you", pt: ["como você está", "como vai você"] },
+  { en: "Thank you", pt: ["obrigado", "obrigada"] }
+];
 
-function getQuestion(index, difficulty) {
-    // Banco FIXO, determinístico
-    if (difficulty >= 40 && difficulty <= 50) {
-        return { q: "Complete: I ___ a student.", a: "am", verb: "to be" };
-    }
-    return { q: "Translate: Hello", a: "hello", verb: null };
-}
-
-// ================= ESTADO =================
-let phaseProgress = 0.75; // começa em 75% para facilitar teste
-let difficulty = 75;
-let askedQuestions = 0;
+let qIndex = 0;
 let attempts = 0;
-let correctStreak = 0;
-let readyForExam = false;
+let hits = 0;
 
-// ================= ELEMENTOS =================
-const questionText = document.getElementById("questionText");
-const answerInput = document.getElementById("answerInput");
-const submitBtn = document.getElementById("submitBtn");
-const nextBtn = document.getElementById("nextBtn");
-const skipBtn = document.getElementById("skipBtn");
-const progress = document.getElementById("progress");
-const explainBox = document.getElementById("explainBox");
-const speakBtn = document.getElementById("speakBtn");
-const pauseBtn = document.getElementById("pauseBtn");
-
-let currentQuestion;
-
-// ================= FUNÇÕES =================
-function updateProgress() {
-    progress.innerText = `Fase 1 — Progresso: ${(phaseProgress*100).toFixed(0)}% | Dificuldade: ${difficulty}`;
+function start() {
+  show("phase");
+  loadQuestion();
 }
 
 function loadQuestion() {
-    attempts = 0;
-    answerInput.value = "";
-    answerInput.className = "answer-input";
-    nextBtn.classList.add("hidden");
-    skipBtn.classList.add("hidden");
-    explainBox.classList.add("hidden");
-
-    currentQuestion = getQuestion(askedQuestions, difficulty);
-    questionText.innerText = currentQuestion.q;
-
-    // explicação automática quando chega no verbo
-    if (currentQuestion.verb === "to be") {
-        explainBox.classList.remove("hidden");
-    }
-
-    askedQuestions++;
+  attempts = 0;
+  document.getElementById("questionText").classList.add("hidden");
+  document.getElementById("questionText").innerText =
+    "Traduza: " + questions[qIndex].en;
+  document.getElementById("feedback").innerText = "";
+  document.getElementById("answer").value = "";
 }
 
-function checkAnswer() {
-    attempts++;
-    const userAnswer = answerInput.value.trim().toLowerCase();
-
-    if (userAnswer === currentQuestion.a) {
-        answerInput.classList.add("correct");
-        correctStreak++;
-        nextBtn.classList.remove("hidden");
-
-        if (correctStreak >= 15 && difficulty >= 95) {
-            readyForExam = true;
-            startExam();
-            return;
-        }
-
-        difficulty = Math.min(100, difficulty + 2);
-        phaseProgress = Math.min(1, phaseProgress + 0.01);
-    } else {
-        answerInput.classList.add("wrong");
-        correctStreak = 0;
-        difficulty = Math.max(1, difficulty - 1);
-        if (attempts >= 5) skipBtn.classList.remove("hidden");
-    }
-    updateProgress();
+function playAudio() {
+  const speech = new SpeechSynthesisUtterance(questions[qIndex].en);
+  speech.lang = "en-US";
+  speechSynthesis.speak(speech);
 }
 
-function nextQuestion() {
+function submit() {
+  attempts++;
+
+  const input = document.getElementById("answer").value.toLowerCase();
+
+  // Bloqueia inglês
+  if (/[a-z]{3,}/.test(input) && !input.includes("ã") && !input.includes("ç")) {
+    document.getElementById("feedback").innerText =
+      "❌ Traduza para um idioma que NÃO seja inglês.";
+    return;
+  }
+
+  if (questions[qIndex].pt.some(p => input.includes(p))) {
+    hits++;
+    qIndex++;
+
+    if (qIndex >= questions.length && hits >= 2) {
+      goExam();
+      return;
+    }
+
     loadQuestion();
+  } else {
+    document.getElementById("feedback").innerText = "❌ Tente novamente.";
+
+    // Texto aparece SOMENTE após 3 tentativas
+    if (attempts >= 3) {
+      document.getElementById("questionText").classList.remove("hidden");
+    }
+  }
 }
 
-function startExam() {
-    alert("You are ready for the exam!");
-    window.location.reload(); // simplificação visual
+function goExam() {
+  show("exam");
+  document.getElementById("examQuestion").innerText = "Good night";
 }
 
-// ================= VOZ =================
-let speech;
-speakBtn.onclick = () => {
-    speech = new SpeechSynthesisUtterance(explainBox.innerText);
-    speech.lang = "pt-BR";
-    speechSynthesis.speak(speech);
-    pauseBtn.classList.remove("hidden");
-};
-pauseBtn.onclick = () => speechSynthesis.pause();
+function sendExam() {
+  const ans = document.getElementById("examAnswer").value.toLowerCase();
 
-// ================= EVENTOS =================
-submitBtn.onclick = checkAnswer;
-nextBtn.onclick = nextQuestion;
-skipBtn.onclick = nextQuestion;
+  if (ans.includes("boa noite")) {
+    showResult(true);
+  } else {
+    showResult(false);
+  }
+}
 
-// ================= INICIAR =================
-updateProgress();
-loadQuestion();
+function showResult(ok) {
+  show("result");
+  if (ok) {
+    document.getElementById("resultTitle").innerText = "Aprovado 🎉";
+    document.getElementById("resultText").innerText =
+      "Você está pronto para a próxima fase.";
+  } else {
+    document.getElementById("resultTitle").innerText = "Reprovado";
+    document.getElementById("resultText").innerText =
+      "Treine mais e tente novamente.";
+  }
+}
+
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
 </script>
+
 </body>
 </html>
