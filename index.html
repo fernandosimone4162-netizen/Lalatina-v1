@@ -1,225 +1,175 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Lalatina — Fase 1</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lalatina – Fase 1</title>
 
 <style>
 body {
-    margin: 0;
-    font-family: Arial, sans-serif;
-    height: 100vh;
-    background: url("background.jpg") no-repeat center center fixed;
-    background-size: cover;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    color: white;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: url("background.png") no-repeat center center fixed;
+  background-size: cover;
+  color: #fff;
 }
 
-.app {
-    width: 100%;
-    max-width: 420px;
-    position: relative;
+#app {
+  max-width: 420px;
+  margin: auto;
+  margin-top: 40px;
+  background: rgba(0,0,0,0.75);
+  border-radius: 16px;
+  padding: 20px;
 }
 
-.mascote {
-    width: 220px;
-    display: block;
-    margin: 0 auto -40px auto;
+h2 {
+  text-align: center;
+  margin-bottom: 10px;
 }
 
-.card {
-    background: rgba(0, 0, 0, 0.7);
-    border-radius: 18px;
-    padding: 20px;
-    text-align: center;
+#phrase {
+  text-align: center;
+  font-size: 22px;
+  margin: 15px 0;
 }
 
-.hidden { display: none; }
-
-input, select, button {
-    width: 100%;
-    padding: 12px;
-    margin-top: 10px;
-    border-radius: 10px;
-    border: none;
-    font-size: 16px;
+input {
+  width: 100%;
+  padding: 12px;
+  font-size: 18px;
+  border-radius: 10px;
+  border: none;
+  margin-bottom: 10px;
 }
 
 button {
-    background: black;
-    color: white;
-    cursor: pointer;
+  width: 100%;
+  padding: 14px;
+  margin-top: 8px;
+  font-size: 16px;
+  border-radius: 12px;
+  border: none;
+  background: #000;
+  color: #fff;
 }
 
-.feedback { margin-top: 10px; }
-.question-text { display:none; font-size:18px; }
+button:disabled {
+  opacity: 0.5;
+}
+
+#info {
+  text-align: center;
+  font-size: 14px;
+  margin-top: 10px;
+}
 </style>
 </head>
 
 <body>
+<div id="app">
+  <h2 id="phase">Phase 1</h2>
 
-<div class="app">
-<img src="lalatina.png" class="mascote">
+  <div id="instruction">Translate what you hear</div>
 
-<div class="card" id="languageScreen">
-<h2>Choose your language</h2>
-<select id="userLang"></select>
-<button onclick="startApp()">Start</button>
-</div>
+  <div id="phrase"></div>
 
-<div class="card hidden" id="gameScreen">
-<h2>Phase 1</h2>
-<div id="questionText" class="question-text"></div>
-<input id="answer" placeholder="Translate what you hear">
-<button onclick="playAudio()">🔊 Listen</button>
-<button onclick="startVoice()">🎤 Speak</button>
-<button onclick="submitAnswer()">Submit</button>
-<button id="skipBtn" class="hidden" onclick="skipQuestion()">Skip</button>
-<div class="feedback" id="feedback"></div>
-</div>
+  <input id="answer" placeholder="Type here">
 
-<div class="card hidden" id="examScreen">
-<h2>Final Test</h2>
-<div id="examQuestion"></div>
-<input id="examAnswer">
-<button onclick="submitExam()">Submit</button>
-<div id="examFeedback"></div>
-</div>
+  <button onclick="listen()">🔊 Listen</button>
+  <button onclick="submitAnswer()">Submit</button>
+  <button onclick="skipQuestion()" id="skipBtn" style="display:none">Skip</button>
+  <button onclick="retry()" id="retryBtn" style="display:none">Try again</button>
 
+  <div id="info"></div>
 </div>
 
 <script>
-/* GLOBALS */
-let difficulty = 1;
+// ===== IDIOMAS =====
+const lang = {
+  pt: {
+    phase: "Fase 1",
+    instruction: "Traduza o que você ouvir",
+    submit: "Enviar",
+    skip: "Pular",
+    retry: "Tentar novamente"
+  },
+  en: {
+    phase: "Phase 1",
+    instruction: "Translate what you hear",
+    submit: "Submit",
+    skip: "Skip",
+    retry: "Try again"
+  }
+};
+
+let currentLang = "en";
+
+// ===== BANCO DE FRASES REAIS =====
+const questions = [
+  { en: "Thank you", pt: "Obrigado" },
+  { en: "Good morning", pt: "Bom dia" },
+  { en: "How are you?", pt: "Como você está?" },
+  { en: "I am ready", pt: "Eu estou pronto" },
+  { en: "I am happy", pt: "Eu estou feliz" }
+  // aqui entram centenas
+];
+
+// ===== ESTADO =====
+let index = 0;
 let attempts = 0;
-let questionCount = 0;
-let minQuestions = 150;
-let maxQuestions = 300;
-let totalQuestions = Math.floor(Math.random()*(maxQuestions-minQuestions+1))+minQuestions;
-let currentQuestion = "";
-let errorLog = {};
-let examQuestions = [];
-let examIndex = 0;
-let examScore = 0;
-let userLanguage = "pt-BR";
+let errors = {};
+let answered = 0;
 
-/* BANK */
-const BANK = {
-1:["hello","good morning","good night","yes","no"],
-2:["how are you","thank you","please"],
-3:["what is your name","nice to meet you"],
-4:["i am learning english","can you help me"],
-5:["i would like to learn more","can you speak slowly"]
-};
+// ===== INIT =====
+updateUI();
+loadQuestion();
 
-/* TRANSLATIONS (BASE) */
-const TRANSLATIONS = {
-"hello":["olá","oi"],
-"good morning":["bom dia"],
-"good night":["boa noite"],
-"yes":["sim"],
-"no":["não"],
-"how are you":["como vai","como você está"],
-"thank you":["obrigado","obrigada"],
-"please":["por favor"]
-};
-
-/* LANGUAGE LIST */
-const select = document.getElementById("userLang");
-Intl.getCanonicalLocales(
-navigator.languages
-).forEach(l=>{
-let o=document.createElement("option");
-o.value=l;o.text=l;
-select.appendChild(o);
-});
-
-/* GAME */
-function startApp(){
-userLanguage=select.value;
-document.getElementById("languageScreen").classList.add("hidden");
-document.getElementById("gameScreen").classList.remove("hidden");
-nextQuestion();
+function updateUI() {
+  document.getElementById("phase").innerText = lang[currentLang].phase;
+  document.getElementById("instruction").innerText = lang[currentLang].instruction;
 }
 
-function nextQuestion(){
-attempts=0;
-document.getElementById("skipBtn").classList.add("hidden");
-document.getElementById("feedback").innerText="";
-document.getElementById("questionText").style.display="none";
-let pool=BANK[difficulty];
-currentQuestion=pool[Math.floor(Math.random()*pool.length)];
-questionCount++;
-playAudio();
+function loadQuestion() {
+  document.getElementById("phrase").innerText = questions[index].en;
+  document.getElementById("answer").value = "";
+  attempts = 0;
+  document.getElementById("skipBtn").style.display = "none";
+  document.getElementById("retryBtn").style.display = "none";
 }
 
-function playAudio(){
-let s=new SpeechSynthesisUtterance(currentQuestion);
-s.lang="en-US";
-speechSynthesis.speak(s);
+function listen() {
+  const msg = new SpeechSynthesisUtterance(questions[index].en);
+  msg.lang = "en-US";
+  speechSynthesis.speak(msg);
 }
 
-function submitAnswer(){
-attempts++;
-let user=document.getElementById("answer").value.toLowerCase().trim();
-let correct=(TRANSLATIONS[currentQuestion]||[]).includes(user);
+function submitAnswer() {
+  const user = document.getElementById("answer").value.trim().toLowerCase();
+  const correct = questions[index].pt.toLowerCase();
 
-if(correct){
-difficulty=Math.min(5,difficulty+1);
-document.getElementById("feedback").innerText="Correct!";
-checkProgress();
-}else{
-errorLog[currentQuestion]=(errorLog[currentQuestion]||0)+1;
-document.getElementById("feedback").innerText="Try again";
-if(attempts>=3){
-document.getElementById("questionText").innerText=currentQuestion;
-document.getElementById("questionText").style.display="block";
-document.getElementById("skipBtn").classList.remove("hidden");
-}
-}
+  if (user === correct) {
+    answered++;
+    index = (index + 1) % questions.length;
+    loadQuestion();
+  } else {
+    attempts++;
+    errors[index] = (errors[index] || 0) + 1;
+    document.getElementById("retryBtn").style.display = "block";
+    if (attempts >= 3) {
+      document.getElementById("skipBtn").style.display = "block";
+    }
+  }
 }
 
-function skipQuestion(){
-difficulty=Math.max(1,difficulty-1);
-checkProgress();
+function retry() {
+  document.getElementById("answer").value = "";
 }
 
-function checkProgress(){
-if(questionCount>=totalQuestions){
-startExam();
-}else{
-nextQuestion();
-}
-}
-
-/* EXAM */
-function startExam(){
-document.getElementById("gameScreen").classList.add("hidden");
-document.getElementById("examScreen").classList.remove("hidden");
-examQuestions=Object.entries(errorLog)
-.sort((a,b)=>b[1]-a[1])
-.slice(0,20)
-.map(e=>e[0]);
-showExam();
-}
-
-function showExam(){
-document.getElementById("examQuestion").innerText=examQuestions[examIndex];
-}
-
-function submitExam(){
-let q=examQuestions[examIndex];
-let a=document.getElementById("examAnswer").value.toLowerCase().trim();
-if((TRANSLATIONS[q]||[]).includes(a)) examScore++;
-examIndex++;
-if(examIndex>=20){
-alert(examScore>=18?"PASSED":"FAILED");
-}else showExam();
+function skipQuestion() {
+  index = (index + 1) % questions.length;
+  loadQuestion();
 }
 </script>
 </body>
-</html
+</html>
