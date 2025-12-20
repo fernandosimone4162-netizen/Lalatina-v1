@@ -2,49 +2,53 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lalatina — Fase 1</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body {
-    background: #0e0e10;
-    color: #fff;
-    font-family: Arial, sans-serif;
-    padding: 20px;
+    background:#0e0e10;
+    color:#fff;
+    font-family:Arial, sans-serif;
+    padding:20px;
 }
-h1 {
-    text-align: center;
-    color: #ff69b4;
-}
+h1 { text-align:center; color:#ff69b4; }
 .box {
-    background: #1c1c1f;
-    padding: 20px;
-    border-radius: 10px;
-    margin-bottom: 15px;
+    background:#1c1c1f;
+    padding:20px;
+    border-radius:10px;
+    margin-bottom:15px;
 }
 button {
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 8px;
-    background: #ff69b4;
-    font-size: 16px;
-    cursor: pointer;
+    width:100%;
+    padding:15px;
+    margin-top:10px;
+    border:none;
+    border-radius:8px;
+    background:#ff69b4;
+    font-size:16px;
+    cursor:pointer;
 }
-button:hover { opacity: 0.9; }
-input, select {
-    width: 100%;
-    padding: 12px;
-    border-radius: 8px;
-    border: none;
-    margin-top: 10px;
+button:hover { opacity:0.9; }
+input {
+    width:100%;
+    padding:12px;
+    border-radius:8px;
+    border:none;
+    margin-top:10px;
+}
+select {
+    width:100%;
+    padding:12px;
+    border-radius:8px;
+    margin-top:10px;
 }
 .info {
-    text-align: center;
-    font-size: 14px;
-    opacity: 0.7;
+    text-align:center;
+    opacity:0.7;
+    font-size:14px;
 }
-.hidden { display: none; }
+.hidden { display:none; }
 </style>
 </head>
 
@@ -52,172 +56,179 @@ input, select {
 
 <h1>Lalatina — Fase 1</h1>
 
-<!-- TELA DE IDIOMA -->
+<!-- TELA IDIOMA -->
 <div class="box" id="languageScreen">
-    <p>Escolha o idioma em que você irá responder:</p>
-    <select id="language">
-        <option>Português (Brasil)</option>
-        <option>English</option>
-        <option>Español</option>
-        <option>Italiano</option>
-        <option>Deutsch</option>
-        <option>Français</option>
-        <option>日本語</option>
-        <option>한국어</option>
-        <option>中文</option>
-        <option>Outro</option>
+    <h3>Escolha seu idioma</h3>
+    <select id="userLanguage">
+        <option value="pt-BR">Português (Brasil)</option>
+        <option value="es-ES">Espanhol</option>
+        <option value="it-IT">Italiano</option>
+        <option value="fr-FR">Francês</option>
+        <option value="ja-JP">Japonês</option>
+        <option value="ko-KR">Coreano</option>
+        <option value="zh-CN">Mandarim</option>
+        <option value="en-US">Inglês</option>
     </select>
-    <button onclick="startPhase()">Iniciar Fase</button>
+    <button onclick="start()">Começar</button>
 </div>
 
-<!-- TELA PRINCIPAL -->
-<div id="mainScreen" class="hidden">
-    <div class="box" id="questionBox">Carregando...</div>
-    <input id="answer" placeholder="Digite a tradução aqui">
+<!-- JOGO -->
+<div class="box hidden" id="gameScreen">
+    <div id="questionBox">Carregando...</div>
+
+    <input id="answerInput" placeholder="Digite a tradução aqui">
+
+    <button onclick="startVoice()">🎤 Responder por voz</button>
     <button onclick="submitAnswer()">Responder</button>
+
     <div class="info" id="info"></div>
 </div>
 
 <script>
-/* ===============================
-   CONFIGURAÇÃO DA FASE
-================================ */
+/* =========================
+   CONFIGURAÇÃO
+========================= */
 
-const MIN_QUESTIONS = 200;
-const MAX_QUESTIONS = 900;
-const TOTAL_QUESTIONS =
-    Math.floor(Math.random() * (MAX_QUESTIONS - MIN_QUESTIONS + 1)) + MIN_QUESTIONS;
+let difficulty = 1;
+let questionCount = 0;
+let difficultyBlock = 0;
+let audioPlays = 0;
+let userLang = "pt-BR";
+let currentSentence = "";
 
-/* ===============================
-   BANCO DE 10.000 PERGUNTAS
-================================ */
+/* =========================
+   BANCO (EXEMPLOS REAIS)
+========================= */
 
-const WORDS = [];
-for (let i = 1; i <= 10000; i++) {
-    WORDS.push("word_" + i);
-}
+const BANK = {
+1: [
+ "Hello.",
+ "Good morning.",
+ "How are you?",
+ "Nice to meet you.",
+ "Thank you."
+],
+2: [
+ "How old are you?",
+ "Where do you live?",
+ "I like coffee.",
+ "She is my friend.",
+ "I work every day."
+],
+3: [
+ "I am learning English.",
+ "This is very important.",
+ "Can you help me?",
+ "I need more time.",
+ "I understand you."
+],
+4: [
+ "I have been studying all morning.",
+ "This situation is complicated.",
+ "She didn't understand the question.",
+ "We need to solve this problem.",
+ "He is trying his best."
+],
+5: [
+ "If I had known, I would have acted differently.",
+ "She has been working here for years.",
+ "This decision could change everything.",
+ "Understanding takes time and patience.",
+ "He realized the mistake too late."
+]
+};
 
-/* ===============================
-   ESTADO DO USUÁRIO
-================================ */
+/* =========================
+   INICIALIZAÇÃO
+========================= */
 
-let currentIndex = 0;
-let difficulty = 1.0; // escala contínua
-let errorsInRow = 0;
-let correctInRow = 0;
-let history = [];
-let evaluationDone = false;
-let selectedQuestions = [];
-
-/* ===============================
-   INÍCIO
-================================ */
-
-function startPhase() {
+function start() {
+    userLang = document.getElementById("userLanguage").value;
     document.getElementById("languageScreen").classList.add("hidden");
-    document.getElementById("mainScreen").classList.remove("hidden");
-
-    selectedQuestions = shuffle([...WORDS]).slice(0, TOTAL_QUESTIONS);
-    showQuestion();
+    document.getElementById("gameScreen").classList.remove("hidden");
+    nextQuestion();
 }
 
-/* ===============================
-   ALGORITMO ADAPTATIVO
-================================ */
+/* =========================
+   GERADOR DE PERGUNTAS
+========================= */
 
-function showQuestion() {
-    if (currentIndex >= selectedQuestions.length) {
+function nextQuestion() {
+    audioPlays = 0;
+    questionCount++;
+
+    if (questionCount % 5 === 0) difficultyBlock++;
+
+    difficulty = Math.min(5, Math.max(1, difficulty));
+
+    const list = BANK[difficulty];
+    currentSentence = list[Math.floor(Math.random() * list.length)];
+
+    document.getElementById("questionBox").innerText =
+        "🔊 Ouça atentamente...";
+    document.getElementById("info").innerText =
+        `Pergunta ${questionCount} | Dificuldade ${difficulty}`;
+
+    playAudio();
+}
+
+/* =========================
+   ÁUDIO (3x)
+========================= */
+
+function playAudio() {
+    if (audioPlays >= 3) {
         document.getElementById("questionBox").innerText =
-            "Fase concluída. Aguardando avaliação final.";
+            `Traduza: "${currentSentence}"`;
         return;
     }
 
-    const word = selectedQuestions[currentIndex];
+    audioPlays++;
+    const utter = new SpeechSynthesisUtterance(currentSentence);
+    utter.lang = "en-US";
+    speechSynthesis.speak(utter);
 
-    document.getElementById("questionBox").innerText =
-        `Translate the word: "${word}"`;
-
-    document.getElementById("info").innerText =
-        `Pergunta ${currentIndex + 1} de ${selectedQuestions.length}
-         | Dificuldade: ${difficulty.toFixed(2)}`;
+    utter.onend = () => {
+        setTimeout(playAudio, 600);
+    };
 }
+
+/* =========================
+   RESPOSTA
+========================= */
 
 function submitAnswer() {
-    const answer = document.getElementById("answer").value.trim();
-    document.getElementById("answer").value = "";
+    const input = document.getElementById("answerInput");
+    const answer = input.value.trim();
+    input.value = "";
 
-    let correct = answer.length > 0; // validação simples (fase 1)
+    if (answer.length === 0) return;
 
-    history.push({
-        question: currentIndex + 1,
-        difficulty,
-        correct
-    });
+    // Ajuste simples adaptativo
+    if (answer.length < 3) difficulty--;
+    else difficulty++;
 
-    if (!correct) {
-        errorsInRow++;
-        correctInRow = 0;
-    } else {
-        correctInRow++;
-        errorsInRow = 0;
-    }
-
-    adjustDifficulty();
-    checkMandatoryEvaluation();
-
-    currentIndex++;
-    showQuestion();
+    nextQuestion();
 }
 
-/* ===============================
-   AJUSTE DE DIFICULDADE
-================================ */
+/* =========================
+   VOZ DO USUÁRIO
+========================= */
 
-function adjustDifficulty() {
-    // Se errar muito, reduz
-    if (errorsInRow >= 7) {
-        difficulty -= 0.1;
-        errorsInRow = 0;
+function startVoice() {
+    if (!('webkitSpeechRecognition' in window)) {
+        alert("Reconhecimento de voz não suportado.");
+        return;
     }
 
-    // Se acertar bem, aumenta lentamente
-    if (correctInRow >= 5) {
-        difficulty += 0.02; // máx 2% a cada 5 perguntas
-        correctInRow = 0;
-    }
+    const rec = new webkitSpeechRecognition();
+    rec.lang = userLang;
+    rec.start();
 
-    difficulty = Math.max(0.5, Math.min(5, difficulty));
-}
-
-/* ===============================
-   REGRA OBRIGATÓRIA DOS 500
-================================ */
-
-function checkMandatoryEvaluation() {
-    if (currentIndex + 1 >= 500 && !evaluationDone) {
-        evaluationDone = true;
-
-        const accuracy =
-            history.filter(h => h.correct).length / history.length;
-
-        if (accuracy >= 0.7) {
-            alert("Algoritmo avaliou: usuário APTO para a prova (quando existir).");
-        } else {
-            alert("Algoritmo avaliou: usuário ainda NÃO apto. Continuação da fase.");
-        }
-    }
-}
-
-/* ===============================
-   UTILITÁRIOS
-================================ */
-
-function shuffle(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
+    rec.onresult = (e) => {
+        document.getElementById("answerInput").value =
+            e.results[0][0].transcript;
+    };
 }
 </script>
 
