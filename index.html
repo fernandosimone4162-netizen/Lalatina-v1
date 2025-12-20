@@ -1,161 +1,229 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lalatina — Fase 1</title>
 
 <style>
-/* ===== FUNDO GALÁXIA ROXO ===== */
 body {
     margin: 0;
-    min-height: 100vh;
     font-family: Arial, sans-serif;
-    color: #fff;
-    background:
-        radial-gradient(circle at 20% 20%, rgba(255,255,255,0.15) 1px, transparent 1px),
-        radial-gradient(circle at 80% 40%, rgba(255,255,255,0.12) 1px, transparent 1px),
-        radial-gradient(circle at 50% 70%, rgba(255,255,255,0.1) 1px, transparent 1px),
-        linear-gradient(180deg, #2b003d, #120018);
-    background-size: 3px 3px, 4px 4px, 5px 5px, cover;
-    padding: 20px;
+    color: white;
+    background: radial-gradient(circle at top, #3a0a6a, #12001f 70%);
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
-/* ===== TÍTULO ===== */
-h1 {
-    text-align: center;
-    margin-bottom: 30px;
-    color: #ff66cc;
-}
-
-/* ===== CAIXA PRINCIPAL ===== */
-.card {
-    max-width: 500px;
-    margin: auto;
-    background: #0d0d0f;
-    border-radius: 14px;
-    padding: 20px;
-    box-shadow: 0 0 25px rgba(0,0,0,0.6);
-}
-
-/* ===== PERGUNTA ===== */
-.question {
-    background: #151518;
-    padding: 16px;
-    border-radius: 10px;
-    margin-bottom: 15px;
-    font-size: 18px;
-}
-
-/* ===== INPUT ===== */
-input {
+.app {
     width: 100%;
-    padding: 14px;
+    max-width: 420px;
+    padding: 20px;
+}
+
+.card {
+    background: rgba(0,0,0,0.55);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+}
+
+h1 {
+    margin-top: 0;
+    font-size: 22px;
+}
+
+select, input {
+    width: 100%;
+    padding: 12px;
     border-radius: 10px;
     border: none;
     font-size: 16px;
-    margin-bottom: 12px;
+    margin-top: 10px;
 }
 
-/* ===== BOTÕES ===== */
 button {
     width: 100%;
+    margin-top: 12px;
     padding: 14px;
-    border-radius: 10px;
+    border-radius: 12px;
     border: none;
-    background: #000;
-    color: #fff;
+    background: black;
+    color: white;
     font-size: 16px;
     cursor: pointer;
-    margin-bottom: 10px;
 }
 
 button:hover {
-    background: #1f1f1f;
+    opacity: 0.85;
 }
 
-/* ===== INFO ===== */
-.info {
-    text-align: center;
-    font-size: 14px;
-    opacity: 0.7;
+.hidden {
+    display: none;
+}
+
+.feedback {
     margin-top: 10px;
+    font-size: 15px;
+}
+
+.question-text {
+    font-size: 22px;
+    margin-bottom: 10px;
+    display: none;
 }
 </style>
 </head>
 
 <body>
 
-<h1>Lalatina — Fase 1</h1>
+<div class="app">
 
-<div class="card">
-    <div class="question" id="questionBox">
-        Traduza: "I am learning English."
-    </div>
+<!-- TELA DE IDIOMA -->
+<div class="card" id="languageScreen">
+    <h1>Escolha seu idioma</h1>
+    <select id="userLang">
+        <option value="pt-BR">Português</option>
+        <option value="it-IT">Italiano</option>
+        <option value="es-ES">Espanhol</option>
+        <option value="fr-FR">Francês</option>
+        <option value="ja-JP">Japonês</option>
+        <option value="ko-KR">Coreano</option>
+        <option value="zh-CN">Mandarim</option>
+        <option value="en-US">Inglês</option>
+    </select>
+    <button onclick="startApp()">Começar</button>
+</div>
 
-    <input id="answer" placeholder="Digite a tradução aqui">
+<!-- FASE 1 -->
+<div class="card hidden" id="gameScreen">
 
-    <button onclick="voiceAnswer()">🎤 Responder por voz</button>
-    <button onclick="nextQuestion()">Responder</button>
+    <h1>Fase 1</h1>
 
-    <div class="info" id="info">
-        Pergunta 7 | Dificuldade 3
-    </div>
+    <div id="questionText" class="question-text"></div>
+
+    <input id="answer" placeholder="Digite a tradução">
+
+    <button onclick="playAudio()">🔊 Escutar novamente</button>
+    <button onclick="startVoice()">🎤 Responder por voz</button>
+    <button onclick="submitAnswer()">Enviar / Próxima</button>
+
+    <div class="feedback" id="feedback"></div>
+
+</div>
+
 </div>
 
 <script>
-/* ===== ESTADO ===== */
-let questionNumber = 7;
-let difficulty = 3;
+/* =============================
+   CONFIGURAÇÃO INICIAL
+============================= */
+let userLanguage = "pt-BR";
+let attempts = 0;
+let questionCount = 0;
+let difficulty = 1;
+let currentQuestion = "";
+let totalQuestions = Math.floor(Math.random() * (300 - 150 + 1)) + 150;
 
-const QUESTIONS = [
-    "Good morning.",
-    "Good night.",
-    "Hello.",
-    "I am learning English.",
-    "You are my friend.",
-    "She is happy.",
-    "He is here."
-];
+/* =============================
+   BANCO SIMPLIFICADO (FASE 1)
+   (estrutura pronta para crescer)
+============================= */
+const BANK = {
+    1: ["hello", "yes", "no", "hi", "good morning", "good night"],
+    2: ["thank you", "please", "sorry", "good afternoon"],
+    3: ["how are you", "are you ok"],
+    4: ["i am fine", "i am ok"],
+    5: ["you are ok", "i am here"]
+};
 
-let current = 3;
-
-/* ===== MOSTRAR PERGUNTA ===== */
-function showQuestion() {
-    document.getElementById("questionBox").innerText =
-        `Traduza: "${QUESTIONS[current]}"`;
-
-    document.getElementById("info").innerText =
-        `Pergunta ${questionNumber} | Dificuldade ${difficulty}`;
+/* =============================
+   CONTROLE DE TELAS
+============================= */
+function startApp() {
+    userLanguage = document.getElementById("userLang").value;
+    document.getElementById("languageScreen").classList.add("hidden");
+    document.getElementById("gameScreen").classList.remove("hidden");
+    nextQuestion();
 }
 
-/* ===== PRÓXIMA ===== */
+/* =============================
+   GERAR PERGUNTA
+============================= */
 function nextQuestion() {
-    questionNumber++;
-    current = (current + 1) % QUESTIONS.length;
+    attempts = 0;
     document.getElementById("answer").value = "";
-    showQuestion();
+    document.getElementById("feedback").innerText = "";
+    document.getElementById("questionText").style.display = "none";
+
+    // dificuldade sobe lentamente a cada 5 perguntas
+    if (questionCount > 0 && questionCount % 5 === 0 && difficulty < 5) {
+        difficulty++;
+    }
+
+    let pool = BANK[difficulty] || BANK[1];
+    currentQuestion = pool[Math.floor(Math.random() * pool.length)];
+    questionCount++;
+
+    playAudio();
 }
 
-/* ===== VOZ ===== */
-function voiceAnswer() {
-    if (!('webkitSpeechRecognition' in window)) {
-        alert("Reconhecimento de voz não suportado.");
+/* =============================
+   ÁUDIO
+============================= */
+function playAudio() {
+    let speech = new SpeechSynthesisUtterance(currentQuestion);
+    speech.lang = "en-US";
+    speechSynthesis.speak(speech);
+}
+
+/* =============================
+   RESPOSTA
+============================= */
+function submitAnswer() {
+    attempts++;
+
+    if (attempts >= 3) {
+        document.getElementById("questionText").innerText = currentQuestion;
+        document.getElementById("questionText").style.display = "block";
+    }
+
+    document.getElementById("feedback").innerText =
+        "✔️ Resposta registrada";
+
+    // ajuste adaptativo simples
+    if (attempts >= 4 && difficulty > 1) {
+        difficulty--;
+    }
+
+    if (questionCount >= totalQuestions) {
+        alert("Fase concluída. O algoritmo irá avaliar você.");
         return;
     }
 
-    const recognition = new webkitSpeechRecognition();
-    recognition.lang = "pt-BR";
-    recognition.start();
-
-    recognition.onresult = function(event) {
-        document.getElementById("answer").value =
-            event.results[0][0].transcript;
-    };
+    nextQuestion();
 }
 
-/* INIT */
-showQuestion();
+/* =============================
+   VOZ
+============================= */
+function startVoice() {
+    if (!('webkitSpeechRecognition' in window)) {
+        alert("Reconhecimento de voz não suportado");
+        return;
+    }
+
+    let rec = new webkitSpeechRecognition();
+    rec.lang = userLanguage;
+    rec.start();
+
+    rec.onresult = e => {
+        document.getElementById("answer").value =
+            e.results[0][0].transcript;
+    };
+}
 </script>
 
 </body>
