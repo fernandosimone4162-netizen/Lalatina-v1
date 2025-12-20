@@ -2,32 +2,45 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Lalatina — Fase 1</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
 body {
     margin: 0;
     font-family: Arial, sans-serif;
-    color: white;
-    background: radial-gradient(circle at top, #3a0a6a, #12001f 70%);
     height: 100vh;
+    background: url("background.jpg") no-repeat center center fixed;
+    background-size: cover;
     display: flex;
     justify-content: center;
     align-items: center;
+    color: white;
 }
 
 .app {
     width: 100%;
     max-width: 420px;
-    padding: 20px;
+    position: relative;
 }
 
+/* Mascote */
+.mascote {
+    width: 220px;
+    display: block;
+    margin: 0 auto -40px auto;
+    z-index: 1;
+    position: relative;
+}
+
+/* Card */
 .card {
-    background: rgba(0,0,0,0.55);
-    border-radius: 16px;
+    background: rgba(0, 0, 0, 0.65);
+    border-radius: 18px;
     padding: 20px;
     text-align: center;
+    position: relative;
+    z-index: 2;
 }
 
 h1 {
@@ -35,18 +48,18 @@ h1 {
     font-size: 22px;
 }
 
-select, input {
+input, select {
     width: 100%;
     padding: 12px;
+    margin-top: 10px;
     border-radius: 10px;
     border: none;
     font-size: 16px;
-    margin-top: 10px;
 }
 
 button {
     width: 100%;
-    margin-top: 12px;
+    margin-top: 10px;
     padding: 14px;
     border-radius: 12px;
     border: none;
@@ -70,8 +83,8 @@ button:hover {
 }
 
 .question-text {
-    font-size: 22px;
-    margin-bottom: 10px;
+    font-size: 20px;
+    margin-bottom: 8px;
     display: none;
 }
 </style>
@@ -81,67 +94,84 @@ button:hover {
 
 <div class="app">
 
-<!-- TELA DE IDIOMA -->
+<img src="lalatina.png" class="mascote">
+
+<!-- TELA IDIOMA -->
 <div class="card" id="languageScreen">
     <h1>Escolha seu idioma</h1>
     <select id="userLang">
         <option value="pt-BR">Português</option>
-        <option value="it-IT">Italiano</option>
         <option value="es-ES">Espanhol</option>
+        <option value="it-IT">Italiano</option>
         <option value="fr-FR">Francês</option>
-        <option value="ja-JP">Japonês</option>
-        <option value="ko-KR">Coreano</option>
-        <option value="zh-CN">Mandarim</option>
         <option value="en-US">Inglês</option>
     </select>
     <button onclick="startApp()">Começar</button>
 </div>
 
-<!-- FASE 1 -->
+<!-- JOGO -->
 <div class="card hidden" id="gameScreen">
-
     <h1>Fase 1</h1>
 
-    <div id="questionText" class="question-text"></div>
+    <div class="question-text" id="questionText"></div>
 
-    <input id="answer" placeholder="Digite a tradução">
+    <input id="answer" placeholder="Digite ou fale a tradução">
 
-    <button onclick="playAudio()">🔊 Escutar novamente</button>
-    <button onclick="startVoice()">🎤 Responder por voz</button>
+    <button onclick="playAudio()">🔊 Ouvir</button>
+    <button onclick="startVoice()">🎤 Falar</button>
     <button onclick="submitAnswer()">Enviar / Próxima</button>
 
     <div class="feedback" id="feedback"></div>
-
 </div>
 
 </div>
 
 <script>
-/* =============================
-   CONFIGURAÇÃO INICIAL
-============================= */
 let userLanguage = "pt-BR";
+let difficulty = 1;
 let attempts = 0;
 let questionCount = 0;
-let difficulty = 1;
 let currentQuestion = "";
-let totalQuestions = Math.floor(Math.random() * (300 - 150 + 1)) + 150;
 
-/* =============================
-   BANCO SIMPLIFICADO (FASE 1)
-   (estrutura pronta para crescer)
-============================= */
+const totalQuestions = Math.floor(Math.random() * (300 - 150 + 1)) + 150;
+
+/* BANCO REAL DE FRASES */
 const BANK = {
-    1: ["hello", "yes", "no", "hi", "good morning", "good night"],
-    2: ["thank you", "please", "sorry", "good afternoon"],
-    3: ["how are you", "are you ok"],
-    4: ["i am fine", "i am ok"],
-    5: ["you are ok", "i am here"]
+    1: [
+        "hello",
+        "good morning",
+        "good night",
+        "thank you",
+        "yes",
+        "no"
+    ],
+    2: [
+        "how are you",
+        "i am fine",
+        "what is your name",
+        "nice to meet you",
+        "see you later"
+    ],
+    3: [
+        "where are you from",
+        "how old are you",
+        "i like this",
+        "i don't understand",
+        "can you help me"
+    ],
+    4: [
+        "what are you doing",
+        "i am learning english",
+        "this is very good",
+        "i need some help"
+    ],
+    5: [
+        "i would like to learn more",
+        "can you speak slowly",
+        "i am trying my best"
+    ]
 };
 
-/* =============================
-   CONTROLE DE TELAS
-============================= */
 function startApp() {
     userLanguage = document.getElementById("userLang").value;
     document.getElementById("languageScreen").classList.add("hidden");
@@ -149,39 +179,25 @@ function startApp() {
     nextQuestion();
 }
 
-/* =============================
-   GERAR PERGUNTA
-============================= */
 function nextQuestion() {
     attempts = 0;
     document.getElementById("answer").value = "";
     document.getElementById("feedback").innerText = "";
     document.getElementById("questionText").style.display = "none";
 
-    // dificuldade sobe lentamente a cada 5 perguntas
-    if (questionCount > 0 && questionCount % 5 === 0 && difficulty < 5) {
-        difficulty++;
-    }
-
-    let pool = BANK[difficulty] || BANK[1];
+    let pool = BANK[difficulty];
     currentQuestion = pool[Math.floor(Math.random() * pool.length)];
     questionCount++;
 
     playAudio();
 }
 
-/* =============================
-   ÁUDIO
-============================= */
 function playAudio() {
     let speech = new SpeechSynthesisUtterance(currentQuestion);
     speech.lang = "en-US";
     speechSynthesis.speak(speech);
 }
 
-/* =============================
-   RESPOSTA
-============================= */
 function submitAnswer() {
     attempts++;
 
@@ -190,28 +206,28 @@ function submitAnswer() {
         document.getElementById("questionText").style.display = "block";
     }
 
-    document.getElementById("feedback").innerText =
-        "✔️ Resposta registrada";
+    document.getElementById("feedback").innerText = "Resposta registrada";
 
-    // ajuste adaptativo simples
-    if (attempts >= 4 && difficulty > 1) {
+    /* ADAPTAÇÃO */
+    if (attempts === 1 && difficulty < 5) {
+        difficulty++;
+    }
+
+    if (attempts >= 3 && difficulty > 1) {
         difficulty--;
     }
 
     if (questionCount >= totalQuestions) {
-        alert("Fase concluída. O algoritmo irá avaliar você.");
+        alert("Fase concluída. A Lalatina analisou seu desempenho.");
         return;
     }
 
     nextQuestion();
 }
 
-/* =============================
-   VOZ
-============================= */
 function startVoice() {
     if (!('webkitSpeechRecognition' in window)) {
-        alert("Reconhecimento de voz não suportado");
+        alert("Voz não suportada");
         return;
     }
 
