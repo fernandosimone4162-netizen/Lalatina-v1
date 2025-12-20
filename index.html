@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -38,8 +37,16 @@ button {
   color: #fff;
 }
 
-button:active {
-  background: #1e40af;
+button.secondary {
+  background: #475569;
+}
+
+button.success {
+  background: #16a34a;
+}
+
+button.danger {
+  background: #dc2626;
 }
 
 input {
@@ -54,11 +61,15 @@ input {
 .feedback {
   margin-top: 14px;
   text-align: center;
+  font-size: 16px;
 }
 
 .hidden {
   display: none;
 }
+
+.green { color: #22c55e; }
+.red { color: #ef4444; }
 </style>
 </head>
 
@@ -67,12 +78,12 @@ input {
 <!-- HOME -->
 <div class="screen active" id="home">
   <h1>Lalatina</h1>
-  <p style="text-align:center">Aprenda idiomas ouvindo primeiro.</p>
+  <p style="text-align:center">Aprenda ouvindo primeiro.</p>
   <button onclick="start()">Começar</button>
 </div>
 
 <!-- FASE 1 -->
-<div class="screen" id="phase">
+<div class="screen" id="phase1">
   <h2>Fase 1</h2>
 
   <div id="questionText" class="hidden"></div>
@@ -80,7 +91,10 @@ input {
   <button onclick="playAudio()">🔊 Ouvir pergunta</button>
 
   <input id="answer" placeholder="Digite a tradução">
-  <button onclick="submit()">Responder</button>
+  <button onclick="submitAnswer()">Responder</button>
+
+  <button id="skipBtn" class="secondary hidden" onclick="skipQuestion()">Pular</button>
+  <button id="nextBtn" class="success hidden" onclick="nextQuestion()">Próxima pergunta</button>
 
   <div class="feedback" id="feedback"></div>
 </div>
@@ -88,9 +102,13 @@ input {
 <!-- PROVA -->
 <div class="screen" id="exam">
   <h2>Prova</h2>
-  <p id="examQuestion"></p>
-  <input id="examAnswer" placeholder="Tradução">
-  <button onclick="sendExam()">Enviar</button>
+
+  <div id="examQuestion"></div>
+  <button onclick="playExamAudio()">🔊 Ouvir pergunta</button>
+
+  <input id="examAnswer" placeholder="Digite a tradução">
+  <button onclick="submitExam()">Responder</button>
+
   <div class="feedback" id="examFeedback"></div>
 </div>
 
@@ -98,102 +116,167 @@ input {
 <div class="screen" id="result">
   <h2 id="resultTitle"></h2>
   <p id="resultText"></p>
+  <button id="continueBtn" class="success hidden" onclick="goPhase2()">Continuar</button>
 </div>
 
 <script>
-const questions = [
-  { en: "Good morning", pt: ["bom dia"] },
-  { en: "How are you", pt: ["como você está", "como vai você"] },
-  { en: "Thank you", pt: ["obrigado", "obrigada"] }
+// =======================
+// BANCO SIMPLIFICADO (mock)
+// =======================
+const bank = [
+  { en: "Good morning", pt: ["bom dia"], diff: 10 },
+  { en: "How are you", pt: ["como você está", "como vai você"], diff: 30 },
+  { en: "I am fine", pt: ["eu estou bem"], diff: 60 },
+  { en: "Where are you from", pt: ["de onde você é"], diff: 80 },
+  { en: "I am learning English", pt: ["eu estou aprendendo inglês"], diff: 95 }
 ];
 
-let qIndex = 0;
+// =======================
+// ESTADO
+// =======================
+let index = 0;
 let attempts = 0;
-let hits = 0;
+let difficulty = 10;
+let answered = 0;
+let correctHighLevel = 0;
+
+// =======================
+// FUNÇÕES GERAIS
+// =======================
+function show(id) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  document.getElementById(id).classList.add("active");
+}
 
 function start() {
-  show("phase");
+  show("phase1");
   loadQuestion();
 }
 
 function loadQuestion() {
   attempts = 0;
   document.getElementById("questionText").classList.add("hidden");
-  document.getElementById("questionText").innerText =
-    "Traduza: " + questions[qIndex].en;
   document.getElementById("feedback").innerText = "";
   document.getElementById("answer").value = "";
+  document.getElementById("skipBtn").classList.add("hidden");
+  document.getElementById("nextBtn").classList.add("hidden");
+
+  current = bank.find(q => q.diff >= difficulty) || bank[bank.length - 1];
 }
 
 function playAudio() {
-  const speech = new SpeechSynthesisUtterance(questions[qIndex].en);
-  speech.lang = "en-US";
-  speechSynthesis.speak(speech);
+  const u = new SpeechSynthesisUtterance(current.en);
+  u.lang = "en-US";
+  speechSynthesis.speak(u);
 }
 
-function submit() {
+function submitAnswer() {
   attempts++;
+  answered++;
 
   const input = document.getElementById("answer").value.toLowerCase();
 
-  // Bloqueia inglês
   if (/[a-z]{3,}/.test(input) && !input.includes("ã") && !input.includes("ç")) {
-    document.getElementById("feedback").innerText =
-      "❌ Traduza para um idioma que NÃO seja inglês.";
+    document.getElementById("feedback").innerText = "❌ Traduza para outro idioma.";
     return;
   }
 
-  if (questions[qIndex].pt.some(p => input.includes(p))) {
-    hits++;
-    qIndex++;
+  if (current.pt.some(p => input.includes(p))) {
+    document.getElementById("feedback").innerHTML = "<span class='green'>✔ Correto</span>";
+    document.getElementById("nextBtn").classList.remove("hidden");
 
-    if (qIndex >= questions.length && hits >= 2) {
-      goExam();
-      return;
-    }
-
-    loadQuestion();
+    if (current.diff >= 95) correctHighLevel++;
+    difficulty = Math.min(difficulty + 5, 100);
   } else {
-    document.getElementById("feedback").innerText = "❌ Tente novamente.";
+    document.getElementById("feedback").innerHTML = "<span class='red'>✖ Errado</span>";
 
-    // Texto aparece SOMENTE após 3 tentativas
     if (attempts >= 3) {
+      document.getElementById("questionText").innerText = "Traduza: " + current.en;
       document.getElementById("questionText").classList.remove("hidden");
     }
+
+    if (attempts >= 5) {
+      document.getElementById("skipBtn").classList.remove("hidden");
+    }
+
+    difficulty = Math.max(difficulty - 3, 1);
+  }
+
+  if (answered >= 500 || correctHighLevel >= 15) {
+    startExam();
   }
 }
 
-function goExam() {
+function nextQuestion() {
+  loadQuestion();
+}
+
+function skipQuestion() {
+  loadQuestion();
+}
+
+// =======================
+// PROVA
+// =======================
+let examIndex = 0;
+let examHits = 0;
+
+function startExam() {
   show("exam");
-  document.getElementById("examQuestion").innerText = "Good night";
+  examIndex = 0;
+  examHits = 0;
+  loadExamQuestion();
 }
 
-function sendExam() {
-  const ans = document.getElementById("examAnswer").value.toLowerCase();
+function loadExamQuestion() {
+  currentExam = bank.filter(q => q.diff >= 80)[examIndex % 3];
+  document.getElementById("examQuestion").innerText = "";
+  document.getElementById("examAnswer").value = "";
+  document.getElementById("examFeedback").innerText = "";
+}
 
-  if (ans.includes("boa noite")) {
-    showResult(true);
+function playExamAudio() {
+  const u = new SpeechSynthesisUtterance(currentExam.en);
+  u.lang = "en-US";
+  speechSynthesis.speak(u);
+}
+
+function submitExam() {
+  const input = document.getElementById("examAnswer").value.toLowerCase();
+
+  if (currentExam.pt.some(p => input.includes(p))) {
+    examHits++;
+  }
+
+  examIndex++;
+
+  if (examIndex >= 20) {
+    finishExam();
   } else {
-    showResult(false);
+    loadExamQuestion();
   }
 }
 
-function showResult(ok) {
+function finishExam() {
   show("result");
-  if (ok) {
+
+  if (examHits >= 18) {
     document.getElementById("resultTitle").innerText = "Aprovado 🎉";
     document.getElementById("resultText").innerText =
-      "Você está pronto para a próxima fase.";
+      "Você passou na prova da Fase 1.";
+    document.getElementById("continueBtn").classList.remove("hidden");
   } else {
     document.getElementById("resultTitle").innerText = "Reprovado";
     document.getElementById("resultText").innerText =
-      "Treine mais e tente novamente.";
+      "Você precisa reforçar parte da fase 1.";
   }
 }
 
-function show(id) {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
+// =======================
+// FASE 2 (GANCHO)
+// =======================
+function goPhase2() {
+  alert("Fase 2 será iniciada aqui.");
 }
 </script>
 
