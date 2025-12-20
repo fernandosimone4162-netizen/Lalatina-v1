@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -24,31 +25,22 @@ body {
     position: relative;
 }
 
-/* Mascote */
 .mascote {
     width: 220px;
     display: block;
     margin: 0 auto -40px auto;
-    z-index: 1;
-    position: relative;
 }
 
-/* Card */
 .card {
-    background: rgba(0, 0, 0, 0.65);
+    background: rgba(0, 0, 0, 0.7);
     border-radius: 18px;
     padding: 20px;
     text-align: center;
-    position: relative;
-    z-index: 2;
 }
 
-h1 {
-    margin-top: 0;
-    font-size: 22px;
-}
+.hidden { display: none; }
 
-input, select {
+input, select, button {
     width: 100%;
     padding: 12px;
     margin-top: 10px;
@@ -58,189 +50,176 @@ input, select {
 }
 
 button {
-    width: 100%;
-    margin-top: 10px;
-    padding: 14px;
-    border-radius: 12px;
-    border: none;
     background: black;
     color: white;
-    font-size: 16px;
     cursor: pointer;
 }
 
-button:hover {
-    opacity: 0.85;
-}
-
-.hidden {
-    display: none;
-}
-
-.feedback {
-    margin-top: 10px;
-    font-size: 15px;
-}
-
-.question-text {
-    font-size: 20px;
-    margin-bottom: 8px;
-    display: none;
-}
+.feedback { margin-top: 10px; }
+.question-text { display:none; font-size:18px; }
 </style>
 </head>
 
 <body>
 
 <div class="app">
-
 <img src="lalatina.png" class="mascote">
 
-<!-- TELA IDIOMA -->
 <div class="card" id="languageScreen">
-    <h1>Escolha seu idioma</h1>
-    <select id="userLang">
-        <option value="pt-BR">Português</option>
-        <option value="es-ES">Espanhol</option>
-        <option value="it-IT">Italiano</option>
-        <option value="fr-FR">Francês</option>
-        <option value="en-US">Inglês</option>
-    </select>
-    <button onclick="startApp()">Começar</button>
+<h2>Choose your language</h2>
+<select id="userLang"></select>
+<button onclick="startApp()">Start</button>
 </div>
 
-<!-- JOGO -->
 <div class="card hidden" id="gameScreen">
-    <h1>Fase 1</h1>
+<h2>Phase 1</h2>
+<div id="questionText" class="question-text"></div>
+<input id="answer" placeholder="Translate what you hear">
+<button onclick="playAudio()">🔊 Listen</button>
+<button onclick="startVoice()">🎤 Speak</button>
+<button onclick="submitAnswer()">Submit</button>
+<button id="skipBtn" class="hidden" onclick="skipQuestion()">Skip</button>
+<div class="feedback" id="feedback"></div>
+</div>
 
-    <div class="question-text" id="questionText"></div>
-
-    <input id="answer" placeholder="Digite ou fale a tradução">
-
-    <button onclick="playAudio()">🔊 Ouvir</button>
-    <button onclick="startVoice()">🎤 Falar</button>
-    <button onclick="submitAnswer()">Enviar / Próxima</button>
-
-    <div class="feedback" id="feedback"></div>
+<div class="card hidden" id="examScreen">
+<h2>Final Test</h2>
+<div id="examQuestion"></div>
+<input id="examAnswer">
+<button onclick="submitExam()">Submit</button>
+<div id="examFeedback"></div>
 </div>
 
 </div>
 
 <script>
-let userLanguage = "pt-BR";
+/* GLOBALS */
 let difficulty = 1;
 let attempts = 0;
 let questionCount = 0;
+let minQuestions = 150;
+let maxQuestions = 300;
+let totalQuestions = Math.floor(Math.random()*(maxQuestions-minQuestions+1))+minQuestions;
 let currentQuestion = "";
+let errorLog = {};
+let examQuestions = [];
+let examIndex = 0;
+let examScore = 0;
+let userLanguage = "pt-BR";
 
-const totalQuestions = Math.floor(Math.random() * (300 - 150 + 1)) + 150;
-
-/* BANCO REAL DE FRASES */
+/* BANK */
 const BANK = {
-    1: [
-        "hello",
-        "good morning",
-        "good night",
-        "thank you",
-        "yes",
-        "no"
-    ],
-    2: [
-        "how are you",
-        "i am fine",
-        "what is your name",
-        "nice to meet you",
-        "see you later"
-    ],
-    3: [
-        "where are you from",
-        "how old are you",
-        "i like this",
-        "i don't understand",
-        "can you help me"
-    ],
-    4: [
-        "what are you doing",
-        "i am learning english",
-        "this is very good",
-        "i need some help"
-    ],
-    5: [
-        "i would like to learn more",
-        "can you speak slowly",
-        "i am trying my best"
-    ]
+1:["hello","good morning","good night","yes","no"],
+2:["how are you","thank you","please"],
+3:["what is your name","nice to meet you"],
+4:["i am learning english","can you help me"],
+5:["i would like to learn more","can you speak slowly"]
 };
 
-function startApp() {
-    userLanguage = document.getElementById("userLang").value;
-    document.getElementById("languageScreen").classList.add("hidden");
-    document.getElementById("gameScreen").classList.remove("hidden");
-    nextQuestion();
+/* TRANSLATIONS (BASE) */
+const TRANSLATIONS = {
+"hello":["olá","oi"],
+"good morning":["bom dia"],
+"good night":["boa noite"],
+"yes":["sim"],
+"no":["não"],
+"how are you":["como vai","como você está"],
+"thank you":["obrigado","obrigada"],
+"please":["por favor"]
+};
+
+/* LANGUAGE LIST */
+const select = document.getElementById("userLang");
+Intl.getCanonicalLocales(
+navigator.languages
+).forEach(l=>{
+let o=document.createElement("option");
+o.value=l;o.text=l;
+select.appendChild(o);
+});
+
+/* GAME */
+function startApp(){
+userLanguage=select.value;
+document.getElementById("languageScreen").classList.add("hidden");
+document.getElementById("gameScreen").classList.remove("hidden");
+nextQuestion();
 }
 
-function nextQuestion() {
-    attempts = 0;
-    document.getElementById("answer").value = "";
-    document.getElementById("feedback").innerText = "";
-    document.getElementById("questionText").style.display = "none";
-
-    let pool = BANK[difficulty];
-    currentQuestion = pool[Math.floor(Math.random() * pool.length)];
-    questionCount++;
-
-    playAudio();
+function nextQuestion(){
+attempts=0;
+document.getElementById("skipBtn").classList.add("hidden");
+document.getElementById("feedback").innerText="";
+document.getElementById("questionText").style.display="none";
+let pool=BANK[difficulty];
+currentQuestion=pool[Math.floor(Math.random()*pool.length)];
+questionCount++;
+playAudio();
 }
 
-function playAudio() {
-    let speech = new SpeechSynthesisUtterance(currentQuestion);
-    speech.lang = "en-US";
-    speechSynthesis.speak(speech);
+function playAudio(){
+let s=new SpeechSynthesisUtterance(currentQuestion);
+s.lang="en-US";
+speechSynthesis.speak(s);
 }
 
-function submitAnswer() {
-    attempts++;
+function submitAnswer(){
+attempts++;
+let user=document.getElementById("answer").value.toLowerCase().trim();
+let correct=(TRANSLATIONS[currentQuestion]||[]).includes(user);
 
-    if (attempts >= 3) {
-        document.getElementById("questionText").innerText = currentQuestion;
-        document.getElementById("questionText").style.display = "block";
-    }
-
-    document.getElementById("feedback").innerText = "Resposta registrada";
-
-    /* ADAPTAÇÃO */
-    if (attempts === 1 && difficulty < 5) {
-        difficulty++;
-    }
-
-    if (attempts >= 3 && difficulty > 1) {
-        difficulty--;
-    }
-
-    if (questionCount >= totalQuestions) {
-        alert("Fase concluída. A Lalatina analisou seu desempenho.");
-        return;
-    }
-
-    nextQuestion();
+if(correct){
+difficulty=Math.min(5,difficulty+1);
+document.getElementById("feedback").innerText="Correct!";
+checkProgress();
+}else{
+errorLog[currentQuestion]=(errorLog[currentQuestion]||0)+1;
+document.getElementById("feedback").innerText="Try again";
+if(attempts>=3){
+document.getElementById("questionText").innerText=currentQuestion;
+document.getElementById("questionText").style.display="block";
+document.getElementById("skipBtn").classList.remove("hidden");
+}
+}
 }
 
-function startVoice() {
-    if (!('webkitSpeechRecognition' in window)) {
-        alert("Voz não suportada");
-        return;
-    }
+function skipQuestion(){
+difficulty=Math.max(1,difficulty-1);
+checkProgress();
+}
 
-    let rec = new webkitSpeechRecognition();
-    rec.lang = userLanguage;
-    rec.start();
+function checkProgress(){
+if(questionCount>=totalQuestions){
+startExam();
+}else{
+nextQuestion();
+}
+}
 
-    rec.onresult = e => {
-        document.getElementById("answer").value =
-            e.results[0][0].transcript;
-    };
+/* EXAM */
+function startExam(){
+document.getElementById("gameScreen").classList.add("hidden");
+document.getElementById("examScreen").classList.remove("hidden");
+examQuestions=Object.entries(errorLog)
+.sort((a,b)=>b[1]-a[1])
+.slice(0,20)
+.map(e=>e[0]);
+showExam();
+}
+
+function showExam(){
+document.getElementById("examQuestion").innerText=examQuestions[examIndex];
+}
+
+function submitExam(){
+let q=examQuestions[examIndex];
+let a=document.getElementById("examAnswer").value.toLowerCase().trim();
+if((TRANSLATIONS[q]||[]).includes(a)) examScore++;
+examIndex++;
+if(examIndex>=20){
+alert(examScore>=18?"PASSED":"FAILED");
+}else showExam();
 }
 </script>
-
 </body>
-</html>
+</html
