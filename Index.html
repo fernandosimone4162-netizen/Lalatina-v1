@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Lalatina – Fase 1</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: radial-gradient(circle at top, #4b1fa6, #1a0033);
+    color: white;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.app {
+    width: 100%;
+    max-width: 420px;
+    padding: 20px;
+}
+
+.top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.menu {
+    font-size: 22px;
+}
+
+.title {
+    text-align: center;
+    margin: 20px 0;
+    font-size: 22px;
+}
+
+.card {
+    background: rgba(255,255,255,0.12);
+    border-radius: 16px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 0 20px rgba(0,0,0,0.3);
+}
+
+.hidden-text {
+    font-size: 22px;
+    margin-bottom: 15px;
+    display: none;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+    margin-top: 10px;
+}
+
+.buttons {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: 20px;
+}
+
+button {
+    flex: 1;
+    margin: 5px;
+    padding: 14px;
+    font-size: 16px;
+    border-radius: 12px;
+    border: none;
+    cursor: pointer;
+}
+
+.listen { background: #9b59b6; color: white; }
+.voice { background: #8e44ad; color: white; }
+.next { background: #6c5ce7; color: white; }
+.skip { background: #555; color: white; display: none; }
+
+.feedback {
+    margin-top: 15px;
+    font-size: 16px;
+}
+</style>
+</head>
+
+<body>
+<div class="app">
+
+    <div class="top">
+        <div class="menu">☰</div>
+        <div>Fase 1</div>
+    </div>
+
+    <div class="title">Escute e traduza</div>
+
+    <div class="card">
+        <div id="questionText" class="hidden-text"></div>
+
+        <input id="answer" placeholder="Digite ou fale a tradução">
+
+        <div class="buttons">
+            <button class="listen" onclick="playAudio()">🔊 Escutar</button>
+            <button class="voice" onclick="startVoice()">🎤 Voz</button>
+            <button class="next" onclick="submitAnswer()">➡️ Enviar</button>
+            <button class="skip" id="skipBtn" onclick="nextQuestion()">⏭️ Pular</button>
+        </div>
+
+        <div id="feedback" class="feedback"></div>
+    </div>
+
+</div>
+
+<script>
+const questions = [
+    { en: "Hello", pt: ["olá", "oi"] },
+    { en: "Good morning", pt: ["bom dia"] },
+    { en: "Good night", pt: ["boa noite"] },
+    { en: "Yes", pt: ["sim"] },
+    { en: "No", pt: ["não", "nao"] }
+];
+
+let index = 0;
+let attempts = 0;
+
+function playAudio() {
+    let speech = new SpeechSynthesisUtterance(questions[index].en);
+    speech.lang = "en-US";
+    speechSynthesis.speak(speech);
+}
+
+function submitAnswer() {
+    const input = document.getElementById("answer");
+    const feedback = document.getElementById("feedback");
+    const questionText = document.getElementById("questionText");
+    const skipBtn = document.getElementById("skipBtn");
+
+    attempts++;
+
+    let user = input.value.toLowerCase().trim();
+    let correct = questions[index].pt.some(p => user.includes(p));
+
+    if (correct) {
+        feedback.innerHTML = "✅ Correto!";
+        setTimeout(nextQuestion, 800);
+    } else {
+        feedback.innerHTML = "❌ Tente novamente";
+        if (attempts >= 3) {
+            questionText.innerHTML = questions[index].en;
+            questionText.style.display = "block";
+            skipBtn.style.display = "block";
+        }
+    }
+}
+
+function nextQuestion() {
+    attempts = 0;
+    document.getElementById("answer").value = "";
+    document.getElementById("feedback").innerHTML = "";
+    document.getElementById("questionText").style.display = "none";
+    document.getElementById("skipBtn").style.display = "none";
+
+    index++;
+    if (index >= questions.length) index = 0;
+
+    playAudio();
+}
+
+function startVoice() {
+    if (!('webkitSpeechRecognition' in window)) {
+        alert("Reconhecimento de voz não suportado");
+        return;
+    }
+
+    let recognition = new webkitSpeechRecognition();
+    recognition.lang = "pt-BR";
+    recognition.start();
+
+    recognition.onresult = function(event) {
+        document.getElementById("answer").value =
+            event.results[0][0].transcript;
+    };
+}
+
+// inicia automaticamente
+playAudio();
+</script>
+
+</body>
+</html>
