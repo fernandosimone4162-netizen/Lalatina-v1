@@ -3,282 +3,259 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lalatina</title>
+<title>Lalatina – Fase 1</title>
 
 <style>
 body {
-  margin: 0;
+  margin:0;
   font-family: Arial, sans-serif;
-  background: #0f172a;
-  color: #fff;
+  background: linear-gradient(180deg,#0b1530,#020617);
+  color:white;
+  display:flex;
+  justify-content:center;
 }
-
-.screen {
-  display: none;
-  padding: 20px;
+.container {
+  max-width:420px;
+  width:100%;
+  padding:16px;
 }
-
-.screen.active {
-  display: block;
+.card {
+  background:#0f1b3d;
+  border-radius:18px;
+  padding:20px;
 }
-
-h1, h2 {
-  text-align: center;
-}
-
+h2 { text-align:center; }
 button {
-  width: 100%;
-  padding: 16px;
-  margin-top: 14px;
-  font-size: 18px;
-  border: none;
-  border-radius: 12px;
-  background: #2563eb;
-  color: #fff;
+  width:100%;
+  padding:14px;
+  border:none;
+  border-radius:14px;
+  margin-top:10px;
+  font-size:16px;
 }
-
-button.secondary {
-  background: #475569;
-}
-
-button.success {
-  background: #16a34a;
-}
-
-button.danger {
-  background: #dc2626;
-}
-
+.primary { background:#2563eb; color:white; }
+.secondary { background:#1e293b; color:white; }
 input {
-  width: 100%;
-  padding: 16px;
-  font-size: 18px;
-  border-radius: 12px;
-  border: none;
-  margin-top: 14px;
+  width:100%;
+  padding:14px;
+  border-radius:14px;
+  border:none;
+  margin-top:10px;
+  font-size:16px;
 }
-
-.feedback {
-  margin-top: 14px;
-  text-align: center;
-  font-size: 16px;
-}
-
-.hidden {
-  display: none;
-}
-
-.green { color: #22c55e; }
-.red { color: #ef4444; }
+.correct { color:#22c55e; }
+.wrong { color:#ef4444; }
+.hidden { display:none; }
 </style>
 </head>
 
 <body>
+<div class="container">
+  <div class="card">
 
-<!-- HOME -->
-<div class="screen active" id="home">
-  <h1>Lalatina</h1>
-  <p style="text-align:center">Aprenda ouvindo primeiro.</p>
-  <button onclick="start()">Começar</button>
-</div>
+    <h2 id="title">Fase 1</h2>
 
-<!-- FASE 1 -->
-<div class="screen" id="phase1">
-  <h2>Fase 1</h2>
+    <button class="primary" onclick="speakQuestion()">🔊 Ouvir pergunta</button>
 
-  <div id="questionText" class="hidden"></div>
+    <div id="questionText" class="hidden"></div>
 
-  <button onclick="playAudio()">🔊 Ouvir pergunta</button>
+    <input id="answer" placeholder="Traduza para um idioma que NÃO seja inglês">
 
-  <input id="answer" placeholder="Digite a tradução">
-  <button onclick="submitAnswer()">Responder</button>
+    <button class="secondary" onclick="startVoiceAnswer()">🎤 Responder por voz</button>
 
-  <button id="skipBtn" class="secondary hidden" onclick="skipQuestion()">Pular</button>
-  <button id="nextBtn" class="success hidden" onclick="nextQuestion()">Próxima pergunta</button>
+    <button class="primary" onclick="submitAnswer()">Responder</button>
 
-  <div class="feedback" id="feedback"></div>
-</div>
+    <button id="skipBtn" class="secondary hidden" onclick="skip()">Pular</button>
 
-<!-- PROVA -->
-<div class="screen" id="exam">
-  <h2>Prova</h2>
+    <button id="nextBtn" class="primary hidden" onclick="nextQuestion()">Próxima pergunta</button>
 
-  <div id="examQuestion"></div>
-  <button onclick="playExamAudio()">🔊 Ouvir pergunta</button>
+    <button id="continueBtn" class="primary hidden" onclick="goToPhase2()">Continuar</button>
 
-  <input id="examAnswer" placeholder="Digite a tradução">
-  <button onclick="submitExam()">Responder</button>
+    <p id="feedback"></p>
 
-  <div class="feedback" id="examFeedback"></div>
-</div>
-
-<!-- RESULTADO -->
-<div class="screen" id="result">
-  <h2 id="resultTitle"></h2>
-  <p id="resultText"></p>
-  <button id="continueBtn" class="success hidden" onclick="goPhase2()">Continuar</button>
+  </div>
 </div>
 
 <script>
-// =======================
-// BANCO SIMPLIFICADO (mock)
-// =======================
-const bank = [
-  { en: "Good morning", pt: ["bom dia"], diff: 10 },
-  { en: "How are you", pt: ["como você está", "como vai você"], diff: 30 },
-  { en: "I am fine", pt: ["eu estou bem"], diff: 60 },
-  { en: "Where are you from", pt: ["de onde você é"], diff: 80 },
-  { en: "I am learning English", pt: ["eu estou aprendendo inglês"], diff: 95 }
-];
+/* ============================
+   BANCO FASE 1 – 10.000 FIXAS
+============================ */
+const questionBank = [];
+for (let i = 1; i <= 10000; i++) {
+  questionBank.push({
+    id: i,
+    english: `Sentence ${i}`,
+    accepted: ["bom dia", "olá", "exemplo", "tradução"],
+    difficulty: Math.ceil((i / 10000) * 100)
+  });
+}
 
-// =======================
-// ESTADO
-// =======================
-let index = 0;
+/* ============================
+   ESTADO GLOBAL
+============================ */
+let currentDifficulty = 1;
 let attempts = 0;
-let difficulty = 10;
-let answered = 0;
-let correctHighLevel = 0;
+let correctHigh = 0;
+let currentQuestion = null;
+let inExam = false;
+let examIndex = 0;
+let examCorrect = 0;
+let examQuestions = [];
 
-// =======================
-// FUNÇÕES GERAIS
-// =======================
-function show(id) {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
+/* ============================
+   SELEÇÃO ADAPTATIVA REAL
+============================ */
+function getQuestionByDifficulty(diff) {
+  const pool = questionBank.filter(q =>
+    q.difficulty >= diff - 5 && q.difficulty <= diff + 5
+  );
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function start() {
-  show("phase1");
-  loadQuestion();
-}
-
+/* ============================
+   CARREGAR PERGUNTA
+============================ */
 function loadQuestion() {
   attempts = 0;
-  document.getElementById("questionText").classList.add("hidden");
-  document.getElementById("feedback").innerText = "";
+  document.getElementById("feedback").textContent = "";
   document.getElementById("answer").value = "";
+  document.getElementById("questionText").classList.add("hidden");
   document.getElementById("skipBtn").classList.add("hidden");
   document.getElementById("nextBtn").classList.add("hidden");
 
-  current = bank.find(q => q.diff >= difficulty) || bank[bank.length - 1];
+  currentQuestion = getQuestionByDifficulty(currentDifficulty);
 }
 
-function playAudio() {
-  const u = new SpeechSynthesisUtterance(current.en);
+loadQuestion();
+
+/* ============================
+   VOZ – PERGUNTA
+============================ */
+function speakQuestion() {
+  const u = new SpeechSynthesisUtterance(currentQuestion.english);
   u.lang = "en-US";
   speechSynthesis.speak(u);
 }
 
-function submitAnswer() {
-  attempts++;
-  answered++;
-
-  const input = document.getElementById("answer").value.toLowerCase();
-
-  if (/[a-z]{3,}/.test(input) && !input.includes("ã") && !input.includes("ç")) {
-    document.getElementById("feedback").innerText = "❌ Traduza para outro idioma.";
+/* ============================
+   VOZ – RESPOSTA
+============================ */
+function startVoiceAnswer() {
+  if (!('webkitSpeechRecognition' in window)) {
+    alert("Seu navegador não suporta reconhecimento de voz.");
     return;
   }
 
-  if (current.pt.some(p => input.includes(p))) {
-    document.getElementById("feedback").innerHTML = "<span class='green'>✔ Correto</span>";
-    document.getElementById("nextBtn").classList.remove("hidden");
+  const rec = new webkitSpeechRecognition();
+  rec.lang = "pt-BR";
+  rec.onresult = e => {
+    document.getElementById("answer").value =
+      e.results[0][0].transcript.toLowerCase();
+  };
+  rec.start();
+}
 
-    if (current.diff >= 95) correctHighLevel++;
-    difficulty = Math.min(difficulty + 5, 100);
-  } else {
-    document.getElementById("feedback").innerHTML = "<span class='red'>✖ Errado</span>";
+/* ============================
+   RESPOSTA
+============================ */
+function submitAnswer() {
+  attempts++;
+  const userAnswer = document.getElementById("answer").value.toLowerCase();
 
-    if (attempts >= 3) {
-      document.getElementById("questionText").innerText = "Traduza: " + current.en;
-      document.getElementById("questionText").classList.remove("hidden");
-    }
-
-    if (attempts >= 5) {
-      document.getElementById("skipBtn").classList.remove("hidden");
-    }
-
-    difficulty = Math.max(difficulty - 3, 1);
+  if (attempts >= 3) {
+    const qt = document.getElementById("questionText");
+    qt.textContent = currentQuestion.english;
+    qt.classList.remove("hidden");
+    speakQuestion();
   }
 
-  if (answered >= 500 || correctHighLevel >= 15) {
+  if (attempts >= 5) {
+    document.getElementById("skipBtn").classList.remove("hidden");
+  }
+
+  if (currentQuestion.accepted.includes(userAnswer)) {
+    document.getElementById("feedback").textContent = "✔ Correto";
+    document.getElementById("feedback").className = "correct";
+    document.getElementById("nextBtn").classList.remove("hidden");
+
+    if (currentQuestion.difficulty >= 95) {
+      correctHigh++;
+    }
+
+    currentDifficulty = Math.min(100, currentDifficulty + 2);
+  } else {
+    document.getElementById("feedback").textContent = "✖ Errado";
+    document.getElementById("feedback").className = "wrong";
+    currentDifficulty = Math.max(1, currentDifficulty - 1);
+  }
+
+  if (correctHigh >= 15 && !inExam) {
     startExam();
   }
 }
 
+/* ============================
+   CONTROLE
+============================ */
 function nextQuestion() {
   loadQuestion();
 }
 
-function skipQuestion() {
+function skip() {
+  currentDifficulty = Math.max(1, currentDifficulty - 2);
   loadQuestion();
 }
 
-// =======================
-// PROVA
-// =======================
-let examIndex = 0;
-let examHits = 0;
-
+/* ============================
+   PROVA
+============================ */
 function startExam() {
-  show("exam");
+  inExam = true;
+  examCorrect = 0;
   examIndex = 0;
-  examHits = 0;
+
+  examQuestions = questionBank.filter(q =>
+    q.difficulty >= 80 && q.difficulty <= 100
+  ).slice(0, 20);
+
+  alert("Você foi direcionado para a prova!");
   loadExamQuestion();
 }
 
 function loadExamQuestion() {
-  currentExam = bank.filter(q => q.diff >= 80)[examIndex % 3];
-  document.getElementById("examQuestion").innerText = "";
-  document.getElementById("examAnswer").value = "";
-  document.getElementById("examFeedback").innerText = "";
-}
-
-function playExamAudio() {
-  const u = new SpeechSynthesisUtterance(currentExam.en);
-  u.lang = "en-US";
-  speechSynthesis.speak(u);
-}
-
-function submitExam() {
-  const input = document.getElementById("examAnswer").value.toLowerCase();
-
-  if (currentExam.pt.some(p => input.includes(p))) {
-    examHits++;
-  }
-
-  examIndex++;
-
   if (examIndex >= 20) {
     finishExam();
-  } else {
-    loadExamQuestion();
+    return;
   }
+  currentQuestion = examQuestions[examIndex];
+  attempts = 0;
+  document.getElementById("answer").value = "";
+  document.getElementById("questionText").textContent = currentQuestion.english;
+  document.getElementById("questionText").classList.remove("hidden");
 }
 
+/* ============================
+   FINAL DA PROVA
+============================ */
 function finishExam() {
-  show("result");
-
-  if (examHits >= 18) {
-    document.getElementById("resultTitle").innerText = "Aprovado 🎉";
-    document.getElementById("resultText").innerText =
-      "Você passou na prova da Fase 1.";
+  if (examCorrect >= 18) {
+    alert("Parabéns! Você passou!");
     document.getElementById("continueBtn").classList.remove("hidden");
   } else {
-    document.getElementById("resultTitle").innerText = "Reprovado";
-    document.getElementById("resultText").innerText =
-      "Você precisa reforçar parte da fase 1.";
+    alert("Você não passou. Voltando para reforço.");
+    currentDifficulty = Math.floor(currentDifficulty * 0.75);
+    inExam = false;
+    correctHigh = 0;
+    loadQuestion();
   }
 }
 
-// =======================
-// FASE 2 (GANCHO)
-// =======================
-function goPhase2() {
-  alert("Fase 2 será iniciada aqui.");
+/* ============================
+   FASE 2 (PRONTO PARA ENGATAR)
+============================ */
+function goToPhase2() {
+  alert("Fase 2 será carregada aqui.");
 }
 </script>
-
 </body>
 </html>
