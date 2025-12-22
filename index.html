@@ -1,9 +1,9 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lalatina</title>
+<title>Lalatina – Verbo To Be</title>
 
 <style>
 body {
@@ -26,7 +26,7 @@ body {
   box-shadow: 0 0 20px rgba(0,0,0,.4);
 }
 
-h1, h2 {
+h2 {
   text-align: center;
 }
 
@@ -53,24 +53,34 @@ button:hover {
   border-radius: 10px;
   margin-top: 10px;
   cursor: pointer;
+  text-align: center;
 }
 
 .option:hover {
   background: #1e293b;
 }
 
+.feedback {
+  margin-top: 12px;
+  font-size: 14px;
+  padding: 10px;
+  border-radius: 8px;
+}
+
+.error {
+  background: #3f1d1d;
+  border-left: 4px solid #ef4444;
+}
+
+.success {
+  background: #062e1a;
+  border-left: 4px solid #22c55e;
+}
+
 .progress {
   margin-top: 10px;
   font-size: 14px;
-  opacity: .7;
-}
-
-.explanation {
-  background: #020617;
-  border-left: 4px solid #22c55e;
-  padding: 12px;
-  margin-top: 12px;
-  font-size: 14px;
+  opacity: .8;
 }
 </style>
 </head>
@@ -83,128 +93,146 @@ button:hover {
 <script>
 const app = document.getElementById("app");
 
-let state = JSON.parse(localStorage.getItem("lalatina")) || {
-  phase: 1,
-  mode: "study", // study | training | exam
-  index: 0,
+let state = {
+  mode: "study", // study | training | finished
   correct: 0,
-  totalAnswered: 0
+  errors: 0,
+  tries: 0,
+  current: null
 };
 
-const PHASE_RULES = {
-  minExamCorrect: 16,
-  unlockExamAfter: 20
-};
+/* ---------------- BANCO DE FRASES ---------------- */
 
-const phases = {
-  1: {
-    name: "Verbo To Be",
-    explanation: `
-O verbo <b>to be</b> significa <b>ser</b> ou <b>estar</b>.<br><br>
-I am (eu sou/estou)<br>
-You are (você é/está)<br>
-He / She / It is<br>
-We are<br>
-They are
-    `,
-    questions: [
-      { q: "I ___ happy.", a: "am", o: ["am","is","are"] },
-      { q: "She ___ a teacher.", a: "is", o: ["am","is","are"] },
-      { q: "They ___ friends.", a: "are", o: ["am","is","are"] },
-      { q: "He ___ tired.", a: "is", o: ["am","is","are"] },
-      { q: "We ___ ready.", a: "are", o: ["am","is","are"] },
-      { q: "You ___ correct.", a: "are", o: ["am","is","are"] },
-      { q: "It ___ cold.", a: "is", o: ["am","is","are"] },
-      { q: "I ___ late.", a: "am", o: ["am","is","are"] }
-    ]
-  }
-};
+const subjects = [
+  { en: "I", pt: "Eu", be: "am" },
+  { en: "You", pt: "Você", be: "are" },
+  { en: "He", pt: "Ele", be: "is" },
+  { en: "She", pt: "Ela", be: "is" },
+  { en: "It", pt: "Isso", be: "is" },
+  { en: "We", pt: "Nós", be: "are" },
+  { en: "They", pt: "Eles", be: "are" }
+];
 
-function save() {
-  localStorage.setItem("lalatina", JSON.stringify(state));
+const complements = [
+  { en: "very good", pt: "muito bem" },
+  { en: "happy", pt: "feliz" },
+  { en: "tired", pt: "cansado" },
+  { en: "ready", pt: "pronto" },
+  { en: "at home", pt: "em casa" },
+  { en: "here", pt: "aqui" },
+  { en: "sad", pt: "triste" },
+  { en: "a student", pt: "um estudante" }
+];
+
+// gera ~10.000 perguntas automaticamente
+function generateQuestion() {
+  const s = subjects[Math.floor(Math.random() * subjects.length)];
+  const c = complements[Math.floor(Math.random() * complements.length)];
+
+  return {
+    text: `${s.en} ___ ${c.en}.`,
+    answer: s.be,
+    translation: `${s.pt} ___ ${c.pt}.`,
+    fullTranslation: `${s.pt} ${translateBe(s.be)} ${c.pt}.`
+  };
 }
 
-function shuffle(arr) {
-  return arr.sort(() => Math.random() - 0.5);
+function translateBe(be) {
+  if (be === "am") return "estou";
+  if (be === "is") return "está";
+  if (be === "are") return "estão";
 }
 
-function render() {
-  const phase = phases[state.phase];
-  const questions = shuffle([...phase.questions]);
-  const q = questions[state.index % questions.length];
+/* ---------------- RENDER ---------------- */
 
-  if (state.mode === "study") {
-    app.innerHTML = `
-      <h2>${phase.name}</h2>
-      <div class="explanation">${phase.explanation}</div>
-      <button onclick="startTraining()">Começar Treino</button>
-    `;
-    return;
-  }
-
-  if (state.mode === "exam") {
-    app.innerHTML = `
-      <h2>Prova</h2>
-      <p>${q.q}</p>
-      ${q.o.map(op => `
-        <div class="option" onclick="answer('${op}','${q.a}')">${op}</div>
-      `).join("")}
-      <div class="progress">
-        Acertos: ${state.correct} / ${PHASE_RULES.minExamCorrect}
-      </div>
-    `;
-    return;
-  }
-
+function renderStudy() {
   app.innerHTML = `
-    <h2>${phase.name}</h2>
-    <p>${q.q}</p>
-    ${q.o.map(op => `
-      <div class="option" onclick="answer('${op}','${q.a}')">${op}</div>
-    `).join("")}
-    <div class="progress">
-      Respondidas: ${state.totalAnswered}
-    </div>
+    <h2>Verbo To Be</h2>
+    <p>
+      O verbo <b>to be</b> significa <b>ser</b> ou <b>estar</b>.<br><br>
+      I am → eu estou<br>
+      You are → você está<br>
+      He / She / It is → ele/ela está<br>
+      We are → nós estamos<br>
+      They are → eles estão
+    </p>
+    <button onclick="start()">Começar</button>
   `;
 }
 
-function answer(selected, correct) {
-  state.totalAnswered++;
-  if (selected === correct) state.correct++;
+function renderQuestion(feedback = "") {
+  app.innerHTML = `
+    <h2>Complete a frase</h2>
+    <p style="text-align:center;font-size:18px">${state.current.text}</p>
 
-  state.index++;
+    ${["am","is","are"].map(op => `
+      <div class="option" onclick="answer('${op}')">${op}</div>
+    `).join("")}
 
-  if (
-    state.mode === "training" &&
-    state.totalAnswered >= PHASE_RULES.unlockExamAfter
-  ) {
-    state.mode = "exam";
-    state.correct = 0;
-  }
+    ${feedback}
 
-  if (
-    state.mode === "exam" &&
-    state.correct >= PHASE_RULES.minExamCorrect
-  ) {
-    alert("Parabéns! Você passou de fase!");
-    state.phase++;
-    state.mode = "study";
-    state.index = 0;
-    state.correct = 0;
-    state.totalAnswered = 0;
-  }
+    <div class="progress">
+      Acertos: ${state.correct} / 300
+    </div>
 
-  save();
-  render();
+    ${state.errors >= 5 ? `<button onclick="skip()">Pular pergunta</button>` : ""}
+  `;
 }
 
-function startTraining() {
+/* ---------------- LÓGICA ---------------- */
+
+function start() {
   state.mode = "training";
-  save();
-  render();
+  nextQuestion();
 }
 
-render();
+function nextQuestion() {
+  state.current = generateQuestion();
+  state.errors = 0;
+  state.tries = 0;
+  renderQuestion();
+}
+
+function answer(selected) {
+  state.tries++;
+
+  if (selected === state.current.answer) {
+    state.correct++;
+
+    if (state.correct >= 300) {
+      app.innerHTML = `<h2>Parabéns 🎉</h2><p>Você concluiu esta fase.</p>`;
+      return;
+    }
+
+    nextQuestion();
+    return;
+  }
+
+  state.errors++;
+
+  let feedback = `<div class="feedback error">Resposta errada.</div>`;
+
+  if (state.errors >= 3) {
+    feedback = `
+      <div class="feedback error">
+        <b>Tradução:</b><br>
+        ${state.current.translation}<br><br>
+        <b>Frase correta:</b><br>
+        ${state.current.fullTranslation}
+      </div>
+    `;
+  }
+
+  renderQuestion(feedback);
+}
+
+function skip() {
+  nextQuestion();
+}
+
+/* ---------------- INIT ---------------- */
+
+renderStudy();
 </script>
 </body>
 </html>
