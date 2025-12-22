@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lalatina – Verbo To Be</title>
+<title>Lalatina – Fase 2</title>
 
 <style>
 body {
@@ -26,9 +26,7 @@ body {
   box-shadow: 0 0 20px rgba(0,0,0,.4);
 }
 
-h2 {
-  text-align: center;
-}
+h2 { text-align: center; }
 
 button {
   width: 100%;
@@ -72,11 +70,6 @@ button:hover {
   border-left: 4px solid #ef4444;
 }
 
-.success {
-  background: #062e1a;
-  border-left: 4px solid #22c55e;
-}
-
 .progress {
   margin-top: 10px;
   font-size: 14px;
@@ -94,14 +87,13 @@ button:hover {
 const app = document.getElementById("app");
 
 let state = {
-  mode: "study", // study | training | finished
+  screen: "intro1", // intro1 | intro2 | training | finished
   correct: 0,
   errors: 0,
-  tries: 0,
   current: null
 };
 
-/* ---------------- BANCO DE FRASES ---------------- */
+/* ---------- BANCO BASE ---------- */
 
 const subjects = [
   { en: "I", pt: "Eu", be: "am" },
@@ -114,28 +106,15 @@ const subjects = [
 ];
 
 const complements = [
-  { en: "very good", pt: "muito bem" },
   { en: "happy", pt: "feliz" },
-  { en: "tired", pt: "cansado" },
   { en: "ready", pt: "pronto" },
+  { en: "tired", pt: "cansado" },
   { en: "at home", pt: "em casa" },
   { en: "here", pt: "aqui" },
-  { en: "sad", pt: "triste" },
-  { en: "a student", pt: "um estudante" }
+  { en: "a student", pt: "um estudante" },
+  { en: "very good", pt: "muito bem" },
+  { en: "late", pt: "atrasado" }
 ];
-
-// gera ~10.000 perguntas automaticamente
-function generateQuestion() {
-  const s = subjects[Math.floor(Math.random() * subjects.length)];
-  const c = complements[Math.floor(Math.random() * complements.length)];
-
-  return {
-    text: `${s.en} ___ ${c.en}.`,
-    answer: s.be,
-    translation: `${s.pt} ___ ${c.pt}.`,
-    fullTranslation: `${s.pt} ${translateBe(s.be)} ${c.pt}.`
-  };
-}
 
 function translateBe(be) {
   if (be === "am") return "estou";
@@ -143,21 +122,87 @@ function translateBe(be) {
   if (be === "are") return "estão";
 }
 
-/* ---------------- RENDER ---------------- */
+/* ---------- GERADOR COM DIFICULDADE ---------- */
 
-function renderStudy() {
-  app.innerHTML = `
-    <h2>Verbo To Be</h2>
-    <p>
-      O verbo <b>to be</b> significa <b>ser</b> ou <b>estar</b>.<br><br>
-      I am → eu estou<br>
-      You are → você está<br>
-      He / She / It is → ele/ela está<br>
-      We are → nós estamos<br>
-      They are → eles estão
-    </p>
-    <button onclick="start()">Começar</button>
-  `;
+function generateQuestion() {
+  const s = subjects[Math.floor(Math.random() * subjects.length)];
+  const c = complements[Math.floor(Math.random() * complements.length)];
+
+  let level = 0;
+  if (state.correct >= 100) level = 1;
+  if (state.correct >= 200) level = 2;
+
+  // 0 = negativa | 1 = interrogativa | 2 = interrogativa negativa
+  const type = level === 0 ? 0 : level === 1 ? 1 : 2;
+
+  if (type === 0) {
+    return {
+      text: `${s.en} ___ not ${c.en}.`,
+      options: ["am","is","are"],
+      answer: s.be,
+      partial: `${s.pt} ___ não ${c.pt}.`,
+      full: `${s.pt} não ${translateBe(s.be)} ${c.pt}.`
+    };
+  }
+
+  if (type === 1) {
+    return {
+      text: `___ ${s.en.toLowerCase()} ${c.en}?`,
+      options: ["Am","Is","Are"],
+      answer: s.be.charAt(0).toUpperCase() + s.be.slice(1),
+      partial: `___ ${s.pt.toLowerCase()} ${c.pt}?`,
+      full: `${s.pt} ${translateBe(s.be)} ${c.pt}?`
+    };
+  }
+
+  return {
+    text: `___ ${s.en.toLowerCase()} not ${c.en}?`,
+    options: ["Am","Is","Are"],
+    answer: s.be.charAt(0).toUpperCase() + s.be.slice(1),
+    partial: `___ ${s.pt.toLowerCase()} não ${c.pt}?`,
+    full: `${s.pt} não ${translateBe(s.be)} ${c.pt}?`
+  };
+}
+
+/* ---------- TELAS ---------- */
+
+function render() {
+  if (state.screen === "intro1") {
+    app.innerHTML = `
+      <h2>Verbo To Be</h2>
+      <p>
+        O verbo <b>to be</b> significa <b>ser</b> ou <b>estar</b>.<br><br>
+        I am → eu estou<br>
+        You are → você está<br>
+        He / She / It is → ele/ela está<br>
+        We are → nós estamos<br>
+        They are → eles estão
+      </p>
+      <button onclick="nextIntro()">Continuar</button>
+    `;
+    return;
+  }
+
+  if (state.screen === "intro2") {
+    app.innerHTML = `
+      <h2>Forma Negativa</h2>
+      <p>
+        Para negar o verbo <b>to be</b>, usamos <b>not</b>.<br><br>
+        I am <b>not</b> happy → eu não estou feliz<br>
+        He is <b>not</b> ready → ele não está pronto<br>
+        They are <b>not</b> here → eles não estão aqui
+      </p>
+      <button onclick="start()">Começar</button>
+    `;
+    return;
+  }
+
+  if (state.screen === "finished") {
+    app.innerHTML = `<h2>Parabéns 🎉</h2><p>Você concluiu esta fase.</p>`;
+    return;
+  }
+
+  renderQuestion();
 }
 
 function renderQuestion(feedback = "") {
@@ -165,7 +210,7 @@ function renderQuestion(feedback = "") {
     <h2>Complete a frase</h2>
     <p style="text-align:center;font-size:18px">${state.current.text}</p>
 
-    ${["am","is","are"].map(op => `
+    ${state.current.options.map(op => `
       <div class="option" onclick="answer('${op}')">${op}</div>
     `).join("")}
 
@@ -175,36 +220,37 @@ function renderQuestion(feedback = "") {
       Acertos: ${state.correct} / 300
     </div>
 
-    ${state.errors >= 5 ? `<button onclick="skip()">Pular pergunta</button>` : ""}
+    ${state.errors >= 5 ? `<button onclick="next()">Pular pergunta</button>` : ""}
   `;
 }
 
-/* ---------------- LÓGICA ---------------- */
+/* ---------- LÓGICA ---------- */
+
+function nextIntro() {
+  state.screen = "intro2";
+  render();
+}
 
 function start() {
-  state.mode = "training";
-  nextQuestion();
+  state.screen = "training";
+  next();
 }
 
-function nextQuestion() {
+function next() {
   state.current = generateQuestion();
   state.errors = 0;
-  state.tries = 0;
-  renderQuestion();
+  render();
 }
 
-function answer(selected) {
-  state.tries++;
-
-  if (selected === state.current.answer) {
+function answer(op) {
+  if (op === state.current.answer) {
     state.correct++;
-
     if (state.correct >= 300) {
-      app.innerHTML = `<h2>Parabéns 🎉</h2><p>Você concluiu esta fase.</p>`;
+      state.screen = "finished";
+      render();
       return;
     }
-
-    nextQuestion();
+    next();
     return;
   }
 
@@ -216,9 +262,9 @@ function answer(selected) {
     feedback = `
       <div class="feedback error">
         <b>Tradução:</b><br>
-        ${state.current.translation}<br><br>
+        ${state.current.partial}<br><br>
         <b>Frase correta:</b><br>
-        ${state.current.fullTranslation}
+        ${state.current.full}
       </div>
     `;
   }
@@ -226,13 +272,8 @@ function answer(selected) {
   renderQuestion(feedback);
 }
 
-function skip() {
-  nextQuestion();
-}
-
-/* ---------------- INIT ---------------- */
-
-renderStudy();
+/* ---------- INIT ---------- */
+render();
 </script>
 </body>
 </html>
