@@ -9,191 +9,238 @@
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: #0f172a;
+  background: linear-gradient(180deg,#020617,#0f172a);
   color: #fff;
 }
 
-.screen {
-  display: none;
+.app {
+  max-width: 420px;
+  margin: auto;
   padding: 20px;
-}
-
-.active {
-  display: block;
 }
 
 .card {
   background: #020617;
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 20px;
-  margin-bottom: 20px;
+  margin-top: 30px;
+  box-shadow: 0 0 20px rgba(0,0,0,.5);
 }
 
-button {
-  width: 100%;
-  padding: 15px;
-  border-radius: 12px;
-  border: none;
-  font-size: 16px;
-  background: #7c3aed;
-  color: #fff;
-}
-
-.option {
-  background: #1e293b;
-  padding: 12px;
-  margin-top: 10px;
-  border-radius: 10px;
-}
-
-.correct {
-  background: #16a34a;
-}
-
-.translation {
-  margin-top: 15px;
-  font-size: 18px;
-  color: #38bdf8;
+h1,h2,p {
   text-align: center;
 }
 
 .table {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 10px;
+  margin-top: 20px;
 }
 
-.table div {
+.table-header {
+  display: flex;
+  background: #6b21a8;
+  border-radius: 12px;
+  padding: 12px;
+  font-weight: bold;
+}
+
+.table-row {
+  display: flex;
+  background: #0f766e;
+  margin-top: 8px;
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.col {
+  flex: 1;
+  text-align: center;
+}
+
+button.option {
+  width: 100%;
+  padding: 14px;
+  margin-top: 12px;
+  border: none;
+  border-radius: 10px;
   background: #1e293b;
-  padding: 10px;
-  border-radius: 8px;
+  color: #fff;
+  font-size: 16px;
+}
+
+button.option:hover {
+  background: #2563eb;
+}
+
+button.primary {
+  width: 100%;
+  padding: 14px;
+  margin-top: 20px;
+  border: none;
+  border-radius: 10px;
+  background: #2563eb;
+  color: #fff;
+  font-size: 16px;
+}
+
+.correct { color: #22c55e; font-weight: bold; text-align:center; }
+.wrong { color: #ef4444; text-align:center; }
+
+.translation {
+  margin-top: 12px;
+  text-align:center;
 }
 </style>
 </head>
 
 <body>
+<div class="app" id="app"></div>
 
-<!-- FASE 1 EXPLICAÇÃO -->
-<div class="screen active" id="fase1-explicacao">
+<script>
+/* =====================
+   BANCO DE PERGUNTAS
+===================== */
+function gerarBancoFase1() {
+  const base = [
+    { s:"I", v:"am", c:"happy", t:"Eu estou feliz" },
+    { s:"You", v:"are", c:"ready", t:"Você está pronto" },
+    { s:"He", v:"is", c:"here", t:"Ele está aqui" },
+    { s:"She", v:"is", c:"very good", t:"Ela está muito bem" }
+  ];
+  let banco=[];
+  for(let i=0;i<10000;i++){
+    let n=base[i%base.length];
+    banco.push({
+      pergunta:`${n.s} ___ ${n.c}`,
+      correta:n.v,
+      frase:`${n.s} ${n.v} ${n.c}`,
+      traducao:n.t,
+      opcoes:shuffle([n.v,"am","are","is"])
+    });
+  }
+  return banco;
+}
+
+function gerarBancoFase2() {
+  const base = [
+    { s:"I", v:"am not", c:"happy", t:"Eu não estou feliz" },
+    { s:"You", v:"are not", c:"ready", t:"Você não está pronto" },
+    { s:"He", v:"is not", c:"here", t:"Ele não está aqui" }
+  ];
+  let banco=[];
+  for(let i=0;i<10000;i++){
+    let n=base[i%base.length];
+    banco.push({
+      pergunta:`${n.s} ___ ${n.c}`,
+      correta:n.v,
+      frase:`${n.s} ${n.v} ${n.c}`,
+      traducao:n.t,
+      opcoes:shuffle([n.v,"am not","are not","is not"])
+    });
+  }
+  return banco;
+}
+
+function shuffle(a){ return a.sort(()=>Math.random()-0.5); }
+
+const fases = [
+  { nome:"Fase 1", banco:gerarBancoFase1() },
+  { nome:"Fase 2", banco:gerarBancoFase2() }
+];
+
+let faseAtual=0, acertos=0, erros=0, perguntaAtual=null;
+
+function falar(t){
+  let u=new SpeechSynthesisUtterance(t);
+  u.lang="en-US";
+  speechSynthesis.speak(u);
+}
+
+/* =====================
+   TELAS
+===================== */
+function telaExplicativaFase1(){
+  app.innerHTML=`
   <div class="card">
     <h2>Verbo To Be</h2>
 
     <div class="table">
-      <div>am</div><div>Eu sou / Estou</div>
-      <div>are</div><div>Você é / Está</div>
-      <div>is</div><div>Ele é / Está</div>
-      <div>is</div><div>Ela é / Está</div>
-      <div>is</div><div>Isso é / Está</div>
-      <div>are</div><div>Nós somos / Estamos</div>
-      <div>are</div><div>Vocês são / Estão</div>
-      <div>are</div><div>Eles / Elas são / Estão</div>
+      <div class="table-header">
+        <div class="col">Verb To Be</div>
+        <div class="col">Translate</div>
+      </div>
+
+      <div class="table-row"><div class="col">am</div><div class="col">Eu sou / Estou</div></div>
+      <div class="table-row"><div class="col">are</div><div class="col">Você é / Está</div></div>
+      <div class="table-row"><div class="col">is</div><div class="col">Ele é / Está</div></div>
+      <div class="table-row"><div class="col">is</div><div class="col">Ela é / Está</div></div>
+      <div class="table-row"><div class="col">is</div><div class="col">Isso é / Está</div></div>
+      <div class="table-row"><div class="col">are</div><div class="col">Nós somos / Estamos</div></div>
+      <div class="table-row"><div class="col">are</div><div class="col">Vocês são / Estão</div></div>
+      <div class="table-row"><div class="col">are</div><div class="col">Eles / Elas são / Estão</div></div>
     </div>
 
-    <br>
-    <button onclick="startFase1()">Começar</button>
-  </div>
-</div>
+    <button class="primary" onclick="novaPergunta()">Começar</button>
+  </div>`;
+}
 
-<!-- FASE 1 -->
-<div class="screen" id="fase1">
+function novaPergunta(){
+  erros=0;
+  perguntaAtual=fases[faseAtual].banco[Math.floor(Math.random()*fases[faseAtual].banco.length)];
+  renderPergunta();
+}
+
+function renderPergunta(){
+  app.innerHTML=`
   <div class="card">
-    <h3 id="question"></h3>
-    <div id="options"></div>
-    <div class="translation" id="translation"></div>
-  </div>
-</div>
+    <h2>${perguntaAtual.pergunta}</h2>
+    ${perguntaAtual.opcoes.map(o=>`
+      <button class="option" onclick="responder('${o}')">${o}</button>
+    `).join("")}
+    <p>Acertos: ${acertos}/300</p>
+    <div id="fb"></div>
+  </div>`;
+}
 
-<!-- CONCLUSÃO FASE 1 -->
-<div class="screen" id="fase1-fim">
+function responder(o){
+  if(o===perguntaAtual.correta){
+    acertos++;
+    falar(perguntaAtual.frase);
+    app.innerHTML=`
+    <div class="card">
+      <h2 class="correct">✔ Correto!</h2>
+      <div class="translation">
+        <strong>${perguntaAtual.frase}</strong><br>
+        ${perguntaAtual.traducao}
+      </div>
+      <button class="primary" onclick="proximo()">Próxima</button>
+    </div>`;
+  } else {
+    erros++;
+    document.getElementById("fb").innerHTML=
+      `<p class="wrong">Tente novamente (${erros}/3)</p>`;
+  }
+}
+
+function proximo(){
+  if(acertos>=300){
+    faseAtual++;
+    acertos=0;
+    if(faseAtual===1){
+      telaInicialFase2();
+    }
+  } else novaPergunta();
+}
+
+function telaInicialFase2(){
+  app.innerHTML=`
   <div class="card">
-    <h2>🎉 Parabéns!</h2>
-    <p>Você concluiu a primeira fase da La Latina.</p>
-    <button onclick="goFase2Exp()">Próxima Fase</button>
-  </div>
-</div>
-
-<!-- FASE 2 EXPLICAÇÃO -->
-<div class="screen" id="fase2-explicacao">
-  <div class="card">
-    <h2>Verbo To Be – Forma Negativa</h2>
-    <p>
-      I am not = Eu não sou / não estou<br>
-      You are not = Você não é / não está<br>
-      He is not = Ele não é / não está
-    </p>
-    <button onclick="startFase2()">Começar Fase 2</button>
-  </div>
-</div>
-
-<script>
-let count = 0;
-
-function speak(text) {
-  const u = new SpeechSynthesisUtterance(text);
-  u.lang = "en-US";
-  speechSynthesis.speak(u);
+    <h2>Forma Negativa</h2>
+    <p>Agora você vai aprender a negar frases com o verbo to be.</p>
+    <button class="primary" onclick="novaPergunta()">Começar</button>
+  </div>`;
 }
 
-function generateQuestion() {
-  return {
-    question: "I ___ very good",
-    correct: "am",
-    full: "I am very good",
-    translation: "Eu sou muito bom"
-  };
-}
-
-function loadQuestion() {
-  const q = generateQuestion();
-  document.getElementById("question").innerText = q.question;
-  document.getElementById("translation").innerText = "";
-
-  const options = ["am", "are", "is"];
-  const box = document.getElementById("options");
-  box.innerHTML = "";
-
-  options.forEach(opt => {
-    const div = document.createElement("div");
-    div.className = "option";
-    div.innerText = opt;
-    div.onclick = () => {
-      if (opt === q.correct) {
-        div.classList.add("correct");
-        document.getElementById("translation").innerText =
-          q.full + " — " + q.translation;
-        speak(q.full);
-        count++;
-        setTimeout(() => {
-          if (count >= 300) {
-            show("fase1-fim");
-          } else {
-            loadQuestion();
-          }
-        }, 1500);
-      }
-    };
-    box.appendChild(div);
-  });
-}
-
-function show(id) {
-  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
-  document.getElementById(id).classList.add("active");
-}
-
-function startFase1() {
-  show("fase1");
-  loadQuestion();
-}
-
-function goFase2Exp() {
-  show("fase2-explicacao");
-}
-
-function startFase2() {
-  alert("Fase 2 iniciada (estrutura pronta)");
-}
+telaExplicativaFase1();
 </script>
-
 </body>
 </html>
