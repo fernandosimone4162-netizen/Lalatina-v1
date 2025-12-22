@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>La Latina</title>
+<title>LALATINA</title>
 
 <style>
 body {
@@ -13,13 +12,11 @@ body {
   background: linear-gradient(180deg,#020617,#0f172a);
   color: #fff;
 }
-
 .app {
   max-width: 420px;
   margin: auto;
   padding: 20px;
 }
-
 .card {
   background: #020617;
   border-radius: 16px;
@@ -27,12 +24,8 @@ body {
   margin-top: 40px;
   box-shadow: 0 0 20px rgba(0,0,0,.5);
 }
-
-h1,h2,p {
-  text-align: center;
-}
-
-button.option {
+h1,h2,p { text-align: center; }
+button {
   width: 100%;
   padding: 14px;
   margin-top: 12px;
@@ -42,234 +35,176 @@ button.option {
   color: #fff;
   font-size: 16px;
 }
-
-button.option:hover {
-  background: #2563eb;
+button:hover { background: #2563eb; }
+.primary { background: #2563eb; }
+.feedback { margin-top: 12px; text-align: center; }
+.correct { color: #22c55e; font-weight: bold; }
+.wrong { color: #ef4444; }
+.menu {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  font-size: 22px;
+  cursor: pointer;
 }
-
-button.primary {
-  width: 100%;
-  padding: 14px;
-  margin-top: 16px;
-  border: none;
-  border-radius: 10px;
-  background: #2563eb;
-  color: #fff;
-  font-size: 16px;
-}
-
-.feedback {
-  margin-top: 16px;
-  text-align: center;
-}
-
-.correct {
-  color: #22c55e;
-  font-weight: bold;
-}
-
-.wrong {
-  color: #ef4444;
-}
-
-.translation {
-  margin-top: 12px;
-  font-size: 16px;
-  line-height: 1.4;
-}
+.hidden { display:none; }
 </style>
 </head>
 
 <body>
+<div class="menu" onclick="abrirMenu()">⋮</div>
 <div class="app" id="app"></div>
 
 <script>
 /* =====================
-   BANCO DE PERGUNTAS
+   ESTADO GLOBAL
 ===================== */
-function gerarBancoFase1() {
-  const niveis = [
-    { s: "I", v: "am", c: "happy", t: "Eu estou feliz" },
-    { s: "You", v: "are", c: "ready", t: "Você está pronto" },
-    { s: "He", v: "is", c: "here", t: "Ele está aqui" },
-    { s: "She", v: "is", c: "very good", t: "Ela está muito bem" }
-  ];
-
-  let banco = [];
-  for (let i = 0; i < 10000; i++) {
-    let n = niveis[i % niveis.length];
-    banco.push({
-      pergunta: `${n.s} ___ ${n.c}`,
-      correta: `${n.v}`,
-      frase: `${n.s} ${n.v} ${n.c}`,
-      traducao: n.t,
-      opcoes: embaralhar([n.v, "are", "is", "am"])
-    });
-  }
-  return banco;
-}
-
-function gerarBancoFase2() {
-  const niveis = [
-    { s: "I", v: "am not", c: "happy", t: "Eu não estou feliz" },
-    { s: "You", v: "are not", c: "ready", t: "Você não está pronto" },
-    { s: "He", v: "is not", c: "here", t: "Ele não está aqui" }
-  ];
-
-  let banco = [];
-  for (let i = 0; i < 10000; i++) {
-    let n = niveis[i % niveis.length];
-    banco.push({
-      pergunta: `${n.s} ___ ${n.c}`,
-      correta: n.v,
-      frase: `${n.s} ${n.v} ${n.c}`,
-      traducao: n.t,
-      opcoes: embaralhar([n.v, "am not", "are not", "is not"])
-    });
-  }
-  return banco;
-}
-
-function embaralhar(arr) {
-  return arr.sort(() => Math.random() - 0.5);
-}
-
-const fases = [
-  {
-    nome: "Fase 1",
-    explicacao: `
-    <strong>Verbo TO BE</strong><br><br>
-    O verbo <strong>to be</strong> significa <strong>ser</strong> ou <strong>estar</strong>.<br><br>
-
-    • I → am<br>
-    • You → are<br>
-    • He / She / It → is<br>
-    • We → are<br>
-    • They → are<br><br>
-
-    Exemplo:<br>
-    I am happy → Eu estou feliz
-    `,
-    banco: gerarBancoFase1()
-  },
-  {
-    nome: "Fase 2",
-    explicacao: `
-    <strong>Forma negativa</strong><br><br>
-    Para negar o verbo to be, usamos <strong>not</strong>.<br><br>
-
-    • I am not<br>
-    • You are not<br>
-    • He / She / It is not<br><br>
-
-    Exemplo:<br>
-    She is not here → Ela não está aqui
-    `,
-    banco: gerarBancoFase2()
-  }
-];
-
-/* =====================
-   ESTADO
-===================== */
-let faseAtual = 0;
-let acertos = 0;
+let perguntasRespondidas = 0;
+let dificuldade = 1;
 let erros = 0;
-let perguntaAtual = null;
+let tentativas = 0;
+let podeProva = false;
+let provaTentativas = 0;
 
 /* =====================
-   FUNÇÕES
+   BANCO DINÂMICO
 ===================== */
-function falar(texto) {
-  const u = new SpeechSynthesisUtterance(texto);
-  u.lang = "en-US";
-  speechSynthesis.speak(u);
-}
-
-function novaPergunta() {
-  erros = 0;
-  perguntaAtual = fases[faseAtual].banco[Math.floor(Math.random() * fases[faseAtual].banco.length)];
-  renderPergunta();
-}
-
-function responder(opcao) {
-  if (opcao === perguntaAtual.correta) {
-    acertos++;
-    falar(perguntaAtual.frase);
-
-    app.innerHTML = `
-      <div class="card">
-        <h2 class="correct">✔ Correto!</h2>
-        <div class="translation">
-          <strong>${perguntaAtual.frase}</strong><br>
-          ${perguntaAtual.traducao}
-        </div>
-        <button class="primary" onclick="proximo()">Próxima</button>
-      </div>
-    `;
-  } else {
-    erros++;
-    if (erros >= 3) {
-      document.querySelector(".feedback").innerHTML = `
-        <div class="wrong">❌ Resposta correta:</div>
-        <div class="translation">
-          <strong>${perguntaAtual.frase}</strong><br>
-          ${perguntaAtual.traducao}
-        </div>
-      `;
-    } else {
-      document.querySelector(".feedback").innerHTML =
-        `<div class="wrong">Tente novamente (${erros}/3)</div>`;
-    }
-  }
-}
-
-function proximo() {
-  if (acertos >= 300) {
-    telaConclusao();
-  } else {
-    novaPergunta();
-  }
+function gerarPergunta() {
+  const banco = [
+    { en:"Good morning", pt:"Bom dia", d:1 },
+    { en:"I am happy", pt:"Eu estou feliz", d:1 },
+    { en:"You are here", pt:"Você está aqui", d:2 },
+    { en:"She is tired", pt:"Ela está cansada", d:2 },
+    { en:"They are ready", pt:"Eles estão prontos", d:3 },
+    { en:"He is not here", pt:"Ele não está aqui", d:3 },
+    { en:"We are learning English", pt:"Nós estamos aprendendo inglês", d:4 },
+    { en:"She is very confident today", pt:"Ela está muito confiante hoje", d:4 },
+    { en:"They are not afraid of mistakes", pt:"Eles não têm medo de errar", d:5 },
+    { en:"I am improving little by little", pt:"Eu estou melhorando aos poucos", d:5 }
+  ];
+  return banco.filter(q => q.d <= dificuldade + 1)
+               [Math.floor(Math.random() * banco.length)];
 }
 
 /* =====================
    TELAS
 ===================== */
-function telaInicial() {
+function telaLogin() {
   app.innerHTML = `
     <div class="card">
-      <h1>La Latina</h1>
-      <h2>${fases[faseAtual].nome}</h2>
-      <p>${fases[faseAtual].explicacao}</p>
+      <h1>LALATINA</h1>
+      <p>Entre com sua conta</p>
+      <button class="primary" onclick="telaBoasVindas()">Entrar com Google</button>
+    </div>
+  `;
+}
+
+function telaBoasVindas() {
+  app.innerHTML = `
+    <div class="card">
+      <h2>👋 Olá, bem-vindo à Latina</h2>
+      <p>Garantimos que, com empenho, você terá uma ótima experiência.</p>
       <button class="primary" onclick="novaPergunta()">Começar</button>
     </div>
   `;
 }
 
-function renderPergunta() {
+let perguntaAtual = null;
+
+function novaPergunta() {
+  perguntaAtual = gerarPergunta();
+  erros = 0;
+  tentativas = 0;
+  tocarAudio(perguntaAtual.en);
+  renderPergunta(false);
+}
+
+function renderPergunta(mostrarTexto) {
   app.innerHTML = `
     <div class="card">
-      <h2>${perguntaAtual.pergunta}</h2>
-      ${perguntaAtual.opcoes.map(o =>
-        `<button class="option" onclick="responder('${o}')">${o}</button>`
-      ).join("")}
+      <h2>${mostrarTexto ? perguntaAtual.en : "🔊 Ouça o áudio"}</h2>
+      <button onclick="responder(true)">Responder certo</button>
+      <button onclick="responder(false)">Responder errado</button>
       <div class="feedback"></div>
-      <p style="margin-top:12px;">Acertos: ${acertos}/300</p>
+      <p>${perguntasRespondidas}/500</p>
     </div>
   `;
 }
 
-function telaConclusao() {
-  app.innerHTML = `
-    <div class="card">
-      <h2>🎉 Parabéns!</h2>
-      <p>Você concluiu a ${fases[faseAtual].nome}.</p>
-      <button class="primary" onclick="faseAtual++; acertos=0; telaInicial()">Próxima fase</button>
-    </div>
-  `;
+function responder(certo) {
+  tentativas++;
+  if (certo) {
+    perguntasRespondidas++;
+    dificuldade += 0.1;
+    if (perguntasRespondidas >= 100 && dificuldade >= 4) podeProva = true;
+    if (perguntasRespondidas >= 500 || podeProva) return telaProva();
+    novaPergunta();
+  } else {
+    erros++;
+    dificuldade = Math.max(1, dificuldade - 0.2);
+    if (tentativas === 3) renderPergunta(true);
+    if (tentativas === 4) alert("Dica: pense no significado.");
+    if (tentativas === 5) novaPergunta();
+  }
 }
 
-telaInicial();
+/* =====================
+   PROVA
+===================== */
+function telaProva() {
+  let acertos = 0;
+  let questao = 0;
+
+  function proxima() {
+    if (questao === 30) {
+      if (acertos >= 20) {
+        app.innerHTML = `
+          <div class="card">
+            <h2>🎉 Aprovado!</h2>
+            <p>Você passou para a Fase 2.</p>
+          </div>`;
+      } else {
+        provaTentativas++;
+        if (provaTentativas >= 3) {
+          perguntasRespondidas = Math.floor(perguntasRespondidas * 0.32);
+          dificuldade = 2;
+          novaPergunta();
+        } else {
+          telaProva();
+        }
+      }
+      return;
+    }
+    const q = gerarPergunta();
+    app.innerHTML = `
+      <div class="card">
+        <h2>${q.en}</h2>
+        <button onclick="acertos++; questao++; proxima()">Certo</button>
+        <button onclick="questao++; proxima()">Errado</button>
+        <p>${questao+1}/30</p>
+      </div>
+    `;
+  }
+  proxima();
+}
+
+/* =====================
+   MENU
+===================== */
+function abrirMenu() {
+  alert("Menu:\n• Verbo TO BE\n• Bot (desbloqueia na fase 5)");
+}
+
+/* =====================
+   ÁUDIO
+===================== */
+function tocarAudio(texto) {
+  const u = new SpeechSynthesisUtterance(texto);
+  u.lang = "en-US";
+  speechSynthesis.speak(u);
+}
+
+telaLogin();
 </script>
 </body>
 </html>
