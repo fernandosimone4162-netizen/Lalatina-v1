@@ -1,163 +1,210 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lalatina – Fase 1</title>
+<title>Lalatina</title>
 
 <style>
-body { margin:0; font-family:Arial; background:#0f172a; color:#fff; }
-.container { max-width:420px; margin:auto; padding:20px; }
-.card { background:#020617; border-radius:12px; padding:20px; }
-button,input { width:100%; padding:12px; margin-top:10px; border-radius:8px; border:none; font-size:16px; }
-.primary{background:#2563eb;color:#fff}
-.gray{background:#334155;color:#fff}
-.success{background:#16a34a;color:#fff}
-.correct{color:#22c55e}
-.wrong{color:#ef4444}
-.hidden{display:none}
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: #e5e7eb;
+}
+
+.container {
+  max-width: 420px;
+  margin: auto;
+  padding: 20px;
+}
+
+.card {
+  background: #020617;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 0 20px rgba(0,0,0,.4);
+}
+
+h1, h2 {
+  text-align: center;
+}
+
+button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+.option {
+  background: #020617;
+  border: 1px solid #334155;
+  padding: 12px;
+  border-radius: 10px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.option:hover {
+  background: #1e293b;
+}
+
+.progress {
+  margin-top: 10px;
+  font-size: 14px;
+  opacity: .7;
+}
+
+.explanation {
+  background: #020617;
+  border-left: 4px solid #22c55e;
+  padding: 12px;
+  margin-top: 12px;
+  font-size: 14px;
+}
 </style>
 </head>
 
 <body>
 <div class="container">
-<div class="card">
-
-<h3 id="title">Fase 1</h3>
-<p id="questionText" class="hidden"></p>
-
-<input id="answerInput" placeholder="Traduza para seu idioma">
-
-<button class="primary" onclick="submitAnswer()">Responder</button>
-<button class="gray" onclick="voiceAnswer()">Responder por voz</button>
-<button class="gray hidden" id="skipBtn" onclick="skipQuestion()">Pular</button>
-<button class="success hidden" id="nextBtn" onclick="nextQuestion()">Próxima</button>
-
-<p id="feedback"></p>
-
-<button class="gray" onclick="speakQuestion()">Ouvir pergunta</button>
-
-</div>
+  <div class="card" id="app"></div>
 </div>
 
 <script>
-/* ================= BANCO FIXO DE 10.000 PERGUNTAS ================= */
+const app = document.getElementById("app");
 
-const bank=[];
-for(let i=1;i<=10000;i++){
-  bank.push({
-    id:i,
-    en:`Question ${i}`,
-    answer:`pergunta ${i}`,
-    difficulty:Math.ceil((i/10000)*100)
-  });
-}
+let state = JSON.parse(localStorage.getItem("lalatina")) || {
+  phase: 1,
+  mode: "study", // study | training | exam
+  index: 0,
+  correct: 0,
+  totalAnswered: 0
+};
 
-/* ================= ESTADO DO USUÁRIO ================= */
+const PHASE_RULES = {
+  minExamCorrect: 16,
+  unlockExamAfter: 20
+};
 
-let difficulty=1;
-let attempts=0;
-let history=[];
-let answered=0;
-let examReady=false;
-
-/* ================= FUNÇÕES ================= */
-
-function currentQuestion(){
-  return bank.find(q=>q.difficulty===difficulty && !q.used);
-}
-
-function speak(text){
-  const u=new SpeechSynthesisUtterance(text);
-  u.lang="en-US";
-  speechSynthesis.speak(u);
-}
-
-function speakQuestion(){
-  speak(currentQuestion().en);
-}
-
-function voiceAnswer(){
-  const r=new webkitSpeechRecognition();
-  r.lang="pt-BR";
-  r.onresult=e=>{
-    document.getElementById("answerInput").value=e.results[0][0].transcript;
-  };
-  r.start();
-}
-
-function loadQuestion(){
-  attempts=0;
-  document.getElementById("feedback").innerText="";
-  document.getElementById("answerInput").value="";
-  document.getElementById("questionText").classList.add("hidden");
-  document.getElementById("nextBtn").classList.add("hidden");
-  document.getElementById("skipBtn").classList.add("hidden");
-  speakQuestion();
-}
-
-/* ================= ALGORITMO ADAPTATIVO ================= */
-
-function adaptDifficulty(correct){
-  history.push(correct);
-  if(history.length>10)history.shift();
-
-  const rate=history.filter(x=>x).length/history.length;
-
-  if(correct && attempts<=2 && rate>=0.8 && difficulty<100){
-    difficulty++;
-  } 
-  else if(!correct && (attempts>=3 || rate<=0.5) && difficulty>1){
-    difficulty--;
+const phases = {
+  1: {
+    name: "Verbo To Be",
+    explanation: `
+O verbo <b>to be</b> significa <b>ser</b> ou <b>estar</b>.<br><br>
+I am (eu sou/estou)<br>
+You are (você é/está)<br>
+He / She / It is<br>
+We are<br>
+They are
+    `,
+    questions: [
+      { q: "I ___ happy.", a: "am", o: ["am","is","are"] },
+      { q: "She ___ a teacher.", a: "is", o: ["am","is","are"] },
+      { q: "They ___ friends.", a: "are", o: ["am","is","are"] },
+      { q: "He ___ tired.", a: "is", o: ["am","is","are"] },
+      { q: "We ___ ready.", a: "are", o: ["am","is","are"] },
+      { q: "You ___ correct.", a: "are", o: ["am","is","are"] },
+      { q: "It ___ cold.", a: "is", o: ["am","is","are"] },
+      { q: "I ___ late.", a: "am", o: ["am","is","are"] }
+    ]
   }
+};
+
+function save() {
+  localStorage.setItem("lalatina", JSON.stringify(state));
 }
 
-/* ================= RESPOSTA ================= */
-
-function submitAnswer(){
-  const q=currentQuestion();
-  const input=document.getElementById("answerInput").value.toLowerCase().trim();
-  attempts++;
-
-  if(attempts>=3){
-    document.getElementById("questionText").innerText=q.en;
-    document.getElementById("questionText").classList.remove("hidden");
-  }
-
-  if(input===q.answer){
-    q.used=true;
-    document.getElementById("feedback").innerHTML="<span class='correct'>Correto</span>";
-    document.getElementById("nextBtn").classList.remove("hidden");
-    adaptDifficulty(true);
-    answered++;
-
-    if(answered>=500 && difficulty>=95){
-      examReady=true;
-      alert("Você está pronto para a prova!");
-    }
-  } else {
-    document.getElementById("feedback").innerHTML="<span class='wrong'>Errado</span>";
-    adaptDifficulty(false);
-    if(attempts>=5) document.getElementById("skipBtn").classList.remove("hidden");
-  }
+function shuffle(arr) {
+  return arr.sort(() => Math.random() - 0.5);
 }
 
-function nextQuestion(){
-  if(examReady){
-    alert("Prova (fase 2) será carregada aqui.");
+function render() {
+  const phase = phases[state.phase];
+  const questions = shuffle([...phase.questions]);
+  const q = questions[state.index % questions.length];
+
+  if (state.mode === "study") {
+    app.innerHTML = `
+      <h2>${phase.name}</h2>
+      <div class="explanation">${phase.explanation}</div>
+      <button onclick="startTraining()">Começar Treino</button>
+    `;
     return;
   }
-  loadQuestion();
+
+  if (state.mode === "exam") {
+    app.innerHTML = `
+      <h2>Prova</h2>
+      <p>${q.q}</p>
+      ${q.o.map(op => `
+        <div class="option" onclick="answer('${op}','${q.a}')">${op}</div>
+      `).join("")}
+      <div class="progress">
+        Acertos: ${state.correct} / ${PHASE_RULES.minExamCorrect}
+      </div>
+    `;
+    return;
+  }
+
+  app.innerHTML = `
+    <h2>${phase.name}</h2>
+    <p>${q.q}</p>
+    ${q.o.map(op => `
+      <div class="option" onclick="answer('${op}','${q.a}')">${op}</div>
+    `).join("")}
+    <div class="progress">
+      Respondidas: ${state.totalAnswered}
+    </div>
+  `;
 }
 
-function skipQuestion(){
-  adaptDifficulty(false);
-  loadQuestion();
+function answer(selected, correct) {
+  state.totalAnswered++;
+  if (selected === correct) state.correct++;
+
+  state.index++;
+
+  if (
+    state.mode === "training" &&
+    state.totalAnswered >= PHASE_RULES.unlockExamAfter
+  ) {
+    state.mode = "exam";
+    state.correct = 0;
+  }
+
+  if (
+    state.mode === "exam" &&
+    state.correct >= PHASE_RULES.minExamCorrect
+  ) {
+    alert("Parabéns! Você passou de fase!");
+    state.phase++;
+    state.mode = "study";
+    state.index = 0;
+    state.correct = 0;
+    state.totalAnswered = 0;
+  }
+
+  save();
+  render();
 }
 
-/* ================= START ================= */
+function startTraining() {
+  state.mode = "training";
+  save();
+  render();
+}
 
-loadQuestion();
+render();
 </script>
 </body>
 </html>
