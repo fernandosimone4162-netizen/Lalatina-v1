@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Lalatina – Fase 2</title>
+<title>La Latina</title>
 
 <style>
 body {
@@ -12,68 +13,38 @@ body {
   background: #0f172a;
   color: #e5e7eb;
 }
-
 .container {
   max-width: 420px;
   margin: auto;
   padding: 20px;
 }
-
 .card {
   background: #020617;
   border-radius: 14px;
   padding: 20px;
-  box-shadow: 0 0 20px rgba(0,0,0,.4);
 }
-
 h2 { text-align: center; }
-
+.option {
+  border: 1px solid #334155;
+  padding: 14px;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+.option:active { background: #1e293b; }
 button {
   width: 100%;
   padding: 14px;
-  margin-top: 12px;
+  margin-top: 14px;
   border-radius: 10px;
   border: none;
   background: #2563eb;
-  color: #fff;
+  color: white;
   font-size: 16px;
-  cursor: pointer;
 }
-
-button:hover {
-  background: #1d4ed8;
-}
-
-.option {
-  background: #020617;
-  border: 1px solid #334155;
-  padding: 12px;
-  border-radius: 10px;
-  margin-top: 10px;
-  cursor: pointer;
-  text-align: center;
-}
-
-.option:hover {
-  background: #1e293b;
-}
-
 .feedback {
-  margin-top: 12px;
-  font-size: 14px;
-  padding: 10px;
-  border-radius: 8px;
-}
-
-.error {
-  background: #3f1d1d;
-  border-left: 4px solid #ef4444;
-}
-
-.progress {
   margin-top: 10px;
   font-size: 14px;
-  opacity: .8;
+  opacity: .85;
 }
 </style>
 </head>
@@ -86,194 +57,169 @@ button:hover {
 <script>
 const app = document.getElementById("app");
 
-let state = {
-  screen: "intro1", // intro1 | intro2 | training | finished
+let state = JSON.parse(localStorage.getItem("lalatina")) || {
+  phase: 1,
   correct: 0,
   errors: 0,
-  current: null
+  index: 0
 };
 
-/* ---------- BANCO BASE ---------- */
-
-const subjects = [
-  { en: "I", pt: "Eu", be: "am" },
-  { en: "You", pt: "Você", be: "are" },
-  { en: "He", pt: "Ele", be: "is" },
-  { en: "She", pt: "Ela", be: "is" },
-  { en: "It", pt: "Isso", be: "is" },
-  { en: "We", pt: "Nós", be: "are" },
-  { en: "They", pt: "Eles", be: "are" }
-];
-
-const complements = [
-  { en: "happy", pt: "feliz" },
-  { en: "ready", pt: "pronto" },
-  { en: "tired", pt: "cansado" },
-  { en: "at home", pt: "em casa" },
-  { en: "here", pt: "aqui" },
-  { en: "a student", pt: "um estudante" },
-  { en: "very good", pt: "muito bem" },
-  { en: "late", pt: "atrasado" }
-];
-
-function translateBe(be) {
-  if (be === "am") return "estou";
-  if (be === "is") return "está";
-  if (be === "are") return "estão";
+function save() {
+  localStorage.setItem("lalatina", JSON.stringify(state));
 }
 
-/* ---------- GERADOR COM DIFICULDADE ---------- */
+/* 🔊 Voz */
+function speak(text) {
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US";
+  u.rate = 0.9;
+  speechSynthesis.speak(u);
+}
+
+/* 📈 Progressão */
+function getLevel() {
+  if (state.correct < 75) return 1;
+  if (state.correct < 150) return 2;
+  if (state.correct < 225) return 3;
+  return 4;
+}
+
+/* 📚 Banco eficiente */
+const subjects = [
+  { en: "I", pt: "Eu", v: "am", neg: "am not" },
+  { en: "You", pt: "Você", v: "are", neg: "are not" },
+  { en: "He", pt: "Ele", v: "is", neg: "is not" },
+  { en: "She", pt: "Ela", v: "is", neg: "is not" },
+  { en: "We", pt: "Nós", v: "are", neg: "are not" },
+  { en: "They", pt: "Eles", v: "are", neg: "are not" }
+];
+
+const complementsByLevel = {
+  1: [
+    { en: "happy", pt: "feliz" },
+    { en: "ready", pt: "pronto" }
+  ],
+  2: [
+    { en: "very happy", pt: "muito feliz" },
+    { en: "at home", pt: "em casa" }
+  ],
+  3: [
+    { en: "very tired today", pt: "muito cansado hoje" },
+    { en: "at home now", pt: "em casa agora" }
+  ],
+  4: [
+    { en: "very tired today at home", pt: "muito cansado hoje em casa" },
+    { en: "not very comfortable now", pt: "não muito confortável agora" }
+  ]
+};
 
 function generateQuestion() {
-  const s = subjects[Math.floor(Math.random() * subjects.length)];
-  const c = complements[Math.floor(Math.random() * complements.length)];
+  const level = getLevel();
+  const s = subjects[state.index % subjects.length];
+  const comps = complementsByLevel[level];
+  const c = comps[Math.floor(state.index / subjects.length) % comps.length];
 
-  let level = 0;
-  if (state.correct >= 100) level = 1;
-  if (state.correct >= 200) level = 2;
-
-  // 0 = negativa | 1 = interrogativa | 2 = interrogativa negativa
-  const type = level === 0 ? 0 : level === 1 ? 1 : 2;
-
-  if (type === 0) {
+  if (state.phase === 1) {
     return {
-      text: `${s.en} ___ not ${c.en}.`,
-      options: ["am","is","are"],
-      answer: s.be,
-      partial: `${s.pt} ___ não ${c.pt}.`,
-      full: `${s.pt} não ${translateBe(s.be)} ${c.pt}.`
+      text: `${s.en} ___ ${c.en}`,
+      correct: s.v,
+      full: `${s.en} ${s.v} ${c.en}`,
+      translation: `${s.pt} ${c.pt}`
+    };
+  } else {
+    return {
+      text: `${s.en} ___ ${c.en}`,
+      correct: s.neg,
+      full: `${s.en} ${s.neg} ${c.en}`,
+      translation: `${s.pt} não ${c.pt}`
     };
   }
-
-  if (type === 1) {
-    return {
-      text: `___ ${s.en.toLowerCase()} ${c.en}?`,
-      options: ["Am","Is","Are"],
-      answer: s.be.charAt(0).toUpperCase() + s.be.slice(1),
-      partial: `___ ${s.pt.toLowerCase()} ${c.pt}?`,
-      full: `${s.pt} ${translateBe(s.be)} ${c.pt}?`
-    };
-  }
-
-  return {
-    text: `___ ${s.en.toLowerCase()} not ${c.en}?`,
-    options: ["Am","Is","Are"],
-    answer: s.be.charAt(0).toUpperCase() + s.be.slice(1),
-    partial: `___ ${s.pt.toLowerCase()} não ${c.pt}?`,
-    full: `${s.pt} não ${translateBe(s.be)} ${c.pt}?`
-  };
 }
 
-/* ---------- TELAS ---------- */
-
-function render() {
-  if (state.screen === "intro1") {
-    app.innerHTML = `
-      <h2>Verbo To Be</h2>
-      <p>
-        O verbo <b>to be</b> significa <b>ser</b> ou <b>estar</b>.<br><br>
-        I am → eu estou<br>
-        You are → você está<br>
-        He / She / It is → ele/ela está<br>
-        We are → nós estamos<br>
-        They are → eles estão
-      </p>
-      <button onclick="nextIntro()">Continuar</button>
-    `;
-    return;
-  }
-
-  if (state.screen === "intro2") {
-    app.innerHTML = `
-      <h2>Forma Negativa</h2>
-      <p>
-        Para negar o verbo <b>to be</b>, usamos <b>not</b>.<br><br>
-        I am <b>not</b> happy → eu não estou feliz<br>
-        He is <b>not</b> ready → ele não está pronto<br>
-        They are <b>not</b> here → eles não estão aqui
-      </p>
-      <button onclick="start()">Começar</button>
-    `;
-    return;
-  }
-
-  if (state.screen === "finished") {
-    app.innerHTML = `<h2>Parabéns 🎉</h2><p>Você concluiu esta fase.</p>`;
-    return;
-  }
-
-  renderQuestion();
-}
-
-function renderQuestion(feedback = "") {
+/* 🖥️ Telas */
+function renderIntro() {
   app.innerHTML = `
-    <h2>Complete a frase</h2>
-    <p style="text-align:center;font-size:18px">${state.current.text}</p>
-
-    ${state.current.options.map(op => `
-      <div class="option" onclick="answer('${op}')">${op}</div>
-    `).join("")}
-
-    ${feedback}
-
-    <div class="progress">
-      Acertos: ${state.correct} / 300
-    </div>
-
-    ${state.errors >= 5 ? `<button onclick="next()">Pular pergunta</button>` : ""}
+    <h2>Fase ${state.phase}</h2>
+    <p>
+      ${state.phase === 1
+        ? "O verbo <b>to be</b> significa ser ou estar."
+        : "Agora vamos aprender a forma negativa do verbo to be."}
+    </p>
+    <button onclick="start()">Começar</button>
   `;
 }
 
-/* ---------- LÓGICA ---------- */
-
-function nextIntro() {
-  state.screen = "intro2";
-  render();
+function renderQuestion() {
+  const q = generateQuestion();
+  app.innerHTML = `
+    <h2>${q.text}</h2>
+    ${shuffle(["am","is","are","am not","is not","are not"]).map(o =>
+      `<div class="option" onclick="answer('${o}')">${o}</div>`
+    ).join("")}
+    <div class="feedback" id="feedback"></div>
+    <div class="feedback">Acertos: ${state.correct}/300</div>
+  `;
 }
 
-function start() {
-  state.screen = "training";
-  next();
+function renderSuccess() {
+  app.innerHTML = `
+    <h2>🎉 Parabéns!</h2>
+    <p>Você concluiu a Fase ${state.phase}</p>
+    <button onclick="nextPhase()">Próxima fase</button>
+  `;
 }
 
-function next() {
-  state.current = generateQuestion();
-  state.errors = 0;
-  render();
-}
+/* ⚙️ Lógica */
+function answer(selected) {
+  const q = generateQuestion();
+  const feedback = document.getElementById("feedback");
 
-function answer(op) {
-  if (op === state.current.answer) {
+  if (selected === q.correct) {
     state.correct++;
-    if (state.correct >= 300) {
-      state.screen = "finished";
-      render();
-      return;
+    state.errors = 0;
+    speak(q.full);
+    state.index++;
+  } else {
+    state.errors++;
+    feedback.innerText = "❌ Errado";
+    if (state.errors >= 3) {
+      feedback.innerText += `\n${q.translation}`;
     }
-    next();
+  }
+
+  if (state.correct >= 300) {
+    save();
+    renderSuccess();
     return;
   }
 
-  state.errors++;
-
-  let feedback = `<div class="feedback error">Resposta errada.</div>`;
-
-  if (state.errors >= 3) {
-    feedback = `
-      <div class="feedback error">
-        <b>Tradução:</b><br>
-        ${state.current.partial}<br><br>
-        <b>Frase correta:</b><br>
-        ${state.current.full}
-      </div>
-    `;
-  }
-
-  renderQuestion(feedback);
+  save();
+  setTimeout(renderQuestion, 800);
 }
 
-/* ---------- INIT ---------- */
-render();
+function start() {
+  state.correct = 0;
+  state.errors = 0;
+  state.index = 0;
+  save();
+  renderQuestion();
+}
+
+function nextPhase() {
+  state.phase++;
+  state.correct = 0;
+  state.errors = 0;
+  state.index = 0;
+  save();
+  renderIntro();
+}
+
+function shuffle(arr) {
+  return arr.sort(() => Math.random() - 0.5);
+}
+
+/* 🚀 Start */
+renderIntro();
 </script>
 </body>
 </html>
