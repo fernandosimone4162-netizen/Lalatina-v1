@@ -2,237 +2,212 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>LaLatina — Treino</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lalatina – Treino</title>
 
 <style>
 body {
-    margin: 0;
-    font-family: Arial, Helvetica, sans-serif;
-    background: #0f172a;
-    color: #fff;
-}
-
-header {
-    background: #020617;
-    padding: 15px;
-    text-align: center;
-    font-size: 18px;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: #fff;
 }
 
 .container {
-    max-width: 500px;
-    margin: auto;
-    padding: 20px;
+  max-width: 420px;
+  margin: auto;
+  padding: 20px;
 }
 
 .card {
-    background: #020617;
-    border-radius: 12px;
-    padding: 20px;
+  background: #020617;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.4);
+}
+
+h1 {
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.status {
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.question {
+  font-size: 24px;
+  text-align: center;
+  margin: 30px 0;
 }
 
 input {
-    width: 100%;
-    padding: 12px;
-    margin-top: 10px;
-    border-radius: 8px;
-    border: none;
-    font-size: 16px;
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 16px;
 }
 
 button {
-    width: 100%;
-    padding: 12px;
-    margin-top: 10px;
-    border-radius: 8px;
-    border: none;
-    background: #2563eb;
-    color: #fff;
-    font-size: 16px;
-    cursor: pointer;
+  width: 100%;
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  font-size: 16px;
+  cursor: pointer;
 }
 
-button.secondary {
-    background: #334155;
+.primary {
+  background: #2563eb;
+  color: #fff;
 }
 
-.success { color: #22c55e; margin-top: 10px; }
-.error { color: #ef4444; margin-top: 10px; }
-.hint { color: #94a3b8; font-size: 14px; margin-top: 10px; }
+.primary:hover {
+  background: #1d4ed8;
+}
 
-.bot {
-    margin-top: 15px;
-    padding: 12px;
-    border-radius: 8px;
-    background: #020617;
-    border: 1px solid #1e293b;
+.secondary {
+  background: #334155;
+  color: #fff;
+}
+
+.feedback {
+  text-align: center;
+  margin-top: 10px;
+  min-height: 20px;
 }
 </style>
 </head>
 
 <body>
-
-<header id="title"></header>
-
 <div class="container">
-    <div class="card" id="game"></div>
+  <div class="card">
+    <h1>Lalatina</h1>
+    <div class="status" id="status">Nível do usuário: 1</div>
+
+    <div class="question" id="question">Hi</div>
+
+    <input type="text" id="answer" placeholder="Digite a tradução (qualquer idioma)">
+    <button class="primary" onclick="submitAnswer()">Confirmar</button>
+    <button class="secondary" onclick="repeatAudio()">🔊 Ouvir novamente</button>
+
+    <div class="feedback" id="feedback"></div>
+  </div>
 </div>
 
 <script>
-/* ==========================
-   CARREGAMENTO DE DADOS
-   ========================== */
+/* ======================================================
+   BANCO DE PERGUNTAS (INGLÊS REAL + DIFICULDADE SUAVE)
+   ====================================================== */
+const questions = [
+  { text: "Hi", level: 1 },
+  { text: "Hello", level: 1 },
+  { text: "Hey", level: 1 },
+  { text: "Good morning", level: 1 },
+  { text: "Thank you", level: 1 },
+  { text: "Sorry", level: 1 },
+  { text: "Please", level: 1 },
 
-const user = JSON.parse(localStorage.getItem("lalatina_user"));
-const fase = Number(localStorage.getItem("fase_atual"));
+  { text: "How are you?", level: 2 },
+  { text: "I'm fine", level: 2 },
+  { text: "I'm okay", level: 2 },
+  { text: "Nice to meet you", level: 2 },
+  { text: "And you?", level: 2 },
 
-if (!user || !fase) location.href = "fases.html";
+  { text: "What is your name?", level: 3 },
+  { text: "Where are you from?", level: 3 },
+  { text: "Are you okay?", level: 3 },
+  { text: "Can you help me?", level: 3 },
+  { text: "I don't understand", level: 3 },
 
-document.getElementById("title").innerText = `Fase ${fase} — Treino`;
+  { text: "What are you doing?", level: 4 },
+  { text: "What time is it?", level: 4 },
+  { text: "How was your day?", level: 4 },
+  { text: "What happened?", level: 4 },
 
-/* ==========================
-   CONFIGURAÇÕES
-   ========================== */
+  { text: "I don't know", level: 5 },
+  { text: "I'm tired", level: 5 },
+  { text: "I'm busy", level: 5 },
+  { text: "I like it", level: 5 },
+  { text: "I don't like it", level: 5 }
+];
 
-const MIN = 100;
-const MAX = 500;
+/* ======================================================
+   ESTADO DO USUÁRIO
+   ====================================================== */
+let userLevel = 1;
+let currentQuestion = null;
 
-/* ==========================
-   BANCO DE PERGUNTAS (BASE)
-   ========================== */
-/* Estrutura preparada para escalar até 500 */
-
-const banco = {
-    1: Array.from({length:100},(_,i)=>({
-        q:`Basic sentence ${i+1}`,
-        a:["exemplo"],
-        h:"Frase básica"
-    })),
-    2: Array.from({length:100},(_,i)=>({
-        q:`Simple question ${i+1}`,
-        a:["exemplo"],
-        h:"Pergunta simples"
-    })),
-    3: Array.from({length:100},(_,i)=>({
-        q:`Sentence with verb to be ${i+1}`,
-        a:["exemplo"],
-        h:"Verbo to be"
-    })),
-    4: Array.from({length:100},(_,i)=>({
-        q:`Present continuous sentence ${i+1}`,
-        a:["exemplo"],
-        h:"Ação em progresso"
-    })),
-    5: Array.from({length:100},(_,i)=>({
-        q:`Conversation phrase ${i+1}`,
-        a:["exemplo"],
-        h:"Conversação"
-    })),
-    6: Array.from({length:100},(_,i)=>({
-        q:`Intermediate sentence ${i+1}`,
-        a:["exemplo"],
-        h:"Intermediário"
-    })),
-    7: Array.from({length:100},(_,i)=>({
-        q:`Advanced structure ${i+1}`,
-        a:["exemplo"],
-        h:"Avançado"
-    })),
-    8: Array.from({length:100},(_,i)=>({
-        q:`Conditional sentence ${i+1}`,
-        a:["exemplo"],
-        h:"Condicional"
-    })),
-    9: Array.from({length:100},(_,i)=>({
-        q:`Complex expression ${i+1}`,
-        a:["exemplo"],
-        h:"Expressão complexa"
-    })),
-    10: Array.from({length:100},(_,i)=>({
-        q:`High difficulty sentence ${i+1}`,
-        a:["exemplo"],
-        h:"Alta dificuldade"
-    }))
-};
-
-/* ==========================
-   PROGRESSO
-   ========================== */
-
-user.progresso[fase].respondidas ||= 0;
-user.progresso[fase].usadas ||= [];
-
-let indice = user.progresso[fase].respondidas;
-
-/* ==========================
-   FUNÇÕES
-   ========================== */
-
-function normalizar(t) {
-    return t.toLowerCase().trim();
+/* ======================================================
+   VOZ (SPEECH SYNTHESIS)
+   ====================================================== */
+function speak(text) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-US";
+  utterance.rate = 0.9;
+  speechSynthesis.speak(utterance);
 }
 
-function respostaEmIngles(texto) {
-    return /^[a-zA-Z\s]+$/.test(texto);
+/* ======================================================
+   ALGORITMO ADAPTATIVO REAL
+   ====================================================== */
+function pickQuestion() {
+  const pool = questions.filter(q =>
+    q.level >= userLevel - 1 && q.level <= userLevel + 1
+  );
+  return pool[Math.floor(Math.random() * pool.length)];
 }
 
-function mostrarPergunta() {
-    const lista = banco[fase].filter((_,i)=>!user.progresso[fase].usadas.includes(i));
+/* ======================================================
+   CARREGAR NOVA PERGUNTA
+   ====================================================== */
+function loadQuestion() {
+  currentQuestion = pickQuestion();
+  document.getElementById("question").innerText = currentQuestion.text;
+  document.getElementById("status").innerText =
+    "Nível do usuário: " + userLevel.toFixed(1);
+  document.getElementById("answer").value = "";
+  document.getElementById("feedback").innerText = "";
 
-    if (lista.length === 0 || user.progresso[fase].respondidas >= MAX) {
-        verificarProva();
-        return;
-    }
-
-    const idx = banco[fase].indexOf(lista[0]);
-    const p = banco[fase][idx];
-
-    const botAtivo = fase >= 5;
-
-    document.getElementById("game").innerHTML = `
-        <p><strong>${p.q}</strong></p>
-        <input id="resp" placeholder="Digite sua resposta">
-        <button onclick="verificar(${idx})">Confirmar</button>
-        ${botAtivo ? `<div class="bot">🤖 Bot ativo — dificuldade ${fase}</div>` : ""}
-        <div id="feedback"></div>
-    `;
+  setTimeout(() => speak(currentQuestion.text), 300);
 }
 
-function verificar(idx) {
-    const r = document.getElementById("resp").value;
+/* ======================================================
+   CONFIRMAR RESPOSTA
+   ====================================================== */
+function submitAnswer() {
+  const answer = document.getElementById("answer").value.trim();
+  if (!answer) {
+    document.getElementById("feedback").innerText =
+      "Digite alguma tradução 🙂";
+    return;
+  }
 
-    if (respostaEmIngles(r)) {
-        document.getElementById("feedback").innerHTML =
-            `<div class="error">Não responda em inglês.</div>`;
-        return;
-    }
+  // resposta registrada (não valida idioma)
+  userLevel = Math.min(userLevel + 0.2, 5);
+  document.getElementById("feedback").innerText = "✔️ Registrado";
+  speak(currentQuestion.text);
 
-    user.progresso[fase].respondidas++;
-    user.progresso[fase].usadas.push(idx);
-
-    localStorage.setItem("lalatina_user", JSON.stringify(user));
-
-    mostrarPergunta();
+  setTimeout(loadQuestion, 1200);
 }
 
-function verificarProva() {
-    if (user.progresso[fase].respondidas >= MIN) {
-        user.progresso[fase].provaLiberada = true;
-        localStorage.setItem("lalatina_user", JSON.stringify(user));
-        window.location.href = "prova.html";
-    } else {
-        document.getElementById("game").innerHTML =
-            `<p>Continue treinando...</p>`;
-    }
+/* ======================================================
+   OUVIR NOVAMENTE
+   ====================================================== */
+function repeatAudio() {
+  if (currentQuestion) speak(currentQuestion.text);
 }
 
-/* ==========================
+/* ======================================================
    INICIAR
-   ========================== */
-
-mostrarPergunta();
+   ====================================================== */
+loadQuestion();
 </script>
-
 </body>
 </html>
