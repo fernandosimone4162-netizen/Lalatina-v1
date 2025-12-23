@@ -2,218 +2,297 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>LALATINA</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-body{
+body {
   margin:0;
-  font-family:Arial, sans-serif;
-  background:linear-gradient(180deg,#6d28d9,#4c1d95);
+  font-family: Arial, sans-serif;
+  background: linear-gradient(180deg,#6d28d9,#4c1d95);
   color:#fff;
 }
-.app{max-width:420px;margin:auto;padding:20px;}
-.card{
-  background:#1e1b4b;
-  border-radius:18px;
+
+.app {
+  max-width:420px;
+  margin:auto;
   padding:20px;
-  margin-top:30px;
-  box-shadow:0 0 30px rgba(0,0,0,.6);
 }
-button{
+
+.card {
+  background:#2e1065;
+  border-radius:16px;
+  padding:20px;
+  margin-top:40px;
+  box-shadow:0 0 25px rgba(0,0,0,.5);
+}
+
+h1,h2,p {
+  text-align:center;
+}
+
+button {
   width:100%;
   padding:14px;
-  margin-top:14px;
+  margin-top:12px;
   border:none;
-  border-radius:12px;
-  background:#8b5cf6;
-  color:#fff;
+  border-radius:10px;
+  background:#a78bfa;
+  color:#1e1b4b;
   font-size:16px;
+  font-weight:bold;
 }
-input{
+
+input {
   width:100%;
   padding:14px;
-  margin-top:14px;
-  border-radius:12px;
+  margin-top:12px;
+  border-radius:10px;
   border:none;
   font-size:16px;
 }
-.menu{
-  position:fixed;
-  top:10px;
-  left:10px;
+
+.menu {
+  position:absolute;
+  top:15px;
+  left:15px;
   font-size:24px;
   cursor:pointer;
 }
-.menuBox{
-  position:fixed;
-  top:50px;
-  left:10px;
-  background:#312e81;
-  padding:14px;
-  border-radius:12px;
-  display:none;
+
+.feedback {
+  margin-top:12px;
+  text-align:center;
 }
-.correct{color:#22c55e;font-weight:bold;}
-.wrong{color:#ef4444;}
+
+.correct { color:#4ade80; font-weight:bold; }
+.wrong { color:#f87171; }
+
+.small { font-size:14px; opacity:.85; }
+
 </style>
 </head>
 
 <body>
-<div class="menu" onclick="toggleMenu()">☰</div>
-<div class="menuBox" id="menuBox">
-  <div onclick="mostrarToBe()">Verbo TO BE</div>
-</div>
-
+<div class="menu" onclick="abrirMenu()">⋮</div>
 <div class="app" id="app"></div>
 
 <script>
-let email="";
-let perguntas=[];
-let indice=0;
-let dificuldade=1;
-let tentativas=0;
-let feitas=0;
-let acertos=0;
-let provaTentativas=0;
+/* =====================
+   ESTADO GLOBAL
+===================== */
+let usuario = null;
+let indicePergunta = 0;
+let erros = 0;
+let acertos = 0;
+let perguntasRespondidas = 0;
+let podeProva = false;
+let emProva = false;
+let tentativaProva = 0;
 
-function toggleMenu(){
-  const m=document.getElementById("menuBox");
-  m.style.display=m.style.display==="block"?"none":"block";
+const MAX_PERGUNTAS = Math.floor(Math.random()*401)+100;
+
+/* =====================
+   BANCO FASE 1
+===================== */
+const banco = [];
+
+const base = [
+ ["Good morning","Bom dia"],
+ ["Good afternoon","Boa tarde"],
+ ["Good evening","Boa noite"],
+ ["Hello","Olá"],
+ ["Hi","Oi"],
+ ["How are you?","Como você está?"],
+ ["I am fine","Eu estou bem"],
+ ["Thank you","Obrigado"],
+ ["You are welcome","De nada"],
+ ["See you later","Até mais"]
+];
+
+for(let i=0;i<MAX_PERGUNTAS;i++){
+ let b = base[i % base.length];
+ banco.push({
+   en: b[0],
+   pt: b[1]
+ });
 }
 
-function mostrarToBe(){
-  app.innerHTML=`
-  <div class="card">
-    <h2>Verbo TO BE</h2>
-    <p><strong>TO BE</strong> significa <b>ser</b> ou <b>estar</b>.</p>
-    <p>I am = eu sou / estou<br>
-       You are = você é / está<br>
-       He is / She is = ele / ela é ou está</p>
-    <p>Negativa: add <b>not</b><br>
-       I am not happy</p>
-    <button onclick="inicio()">Voltar</button>
-  </div>`;
+/* =====================
+   VOZ
+===================== */
+function falar(txt){
+ const u = new SpeechSynthesisUtterance(txt);
+ u.lang="en-US";
+ speechSynthesis.speak(u);
+}
+
+function ouvir(){
+ const rec = new webkitSpeechRecognition();
+ rec.lang="pt-BR";
+ rec.start();
+ rec.onresult=e=>{
+   document.getElementById("resp").value = e.results[0][0].transcript;
+ };
+}
+
+/* =====================
+   TELAS
+===================== */
+function telaLogin(){
+ app.innerHTML=`
+ <div class="card">
+   <h1>LALATINA</h1>
+   <p>Entre com sua conta Google</p>
+   <button onclick="login()">Entrar com Google</button>
+ </div>`;
 }
 
 function login(){
-  app.innerHTML=`
-  <div class="card">
-    <h2>LALATINA</h2>
-    <input placeholder="Digite seu e-mail" id="email">
-    <button onclick="entrar()">Entrar</button>
-  </div>`;
+ usuario={email:"usuario@teste.com"};
+ telaBoasVindas();
 }
 
-function entrar(){
-  email=document.getElementById("email").value;
-  if(!email.includes("@")) return;
-  inicio();
+function telaBoasVindas(){
+ app.innerHTML=`
+ <div class="card">
+   <h2>Olá, bem-vindo à Latina</h2>
+   <p>Desde que tenha empenho no aprendizado, terá uma boa experiência.</p>
+   <button onclick="novaPergunta()">Começar</button>
+ </div>`;
 }
 
-function inicio(){
-  app.innerHTML=`
-  <div class="card">
-    <h2>Olá, bem-vindo à Latina</h2>
-    <p>Desde que haja empenho, você terá uma boa experiência.</p>
-    <button onclick="iniciarFase()">Começar</button>
-  </div>`;
+function abrirMenu(){
+ app.innerHTML=`
+ <div class="card">
+   <h2>Menu</h2>
+   <button onclick="verboToBe()">Verbo To Be</button>
+   <button onclick="novaPergunta()">Voltar</button>
+ </div>`;
 }
 
-function gerarBanco(){
-  const base=[
-    ["Good morning","Bom dia"],
-    ["I am happy","Eu estou feliz"],
-    ["You are here","Você está aqui"],
-    ["She is ready","Ela está pronta"],
-    ["They are tired","Eles estão cansados"]
-  ];
-  for(let i=0;i<200;i++){
-    let b=base[i%base.length];
-    perguntas.push({
-      en:b[0],
-      pt:b[1]
-    });
-  }
+function verboToBe(){
+ app.innerHTML=`
+ <div class="card">
+ <h2>Verbo TO BE</h2>
+ <p>
+ O verbo <b>to be</b> significa <b>ser</b> ou <b>estar</b>.<br><br>
+ I am = Eu sou / estou<br>
+ You are = Você é / está<br>
+ He is / She is = Ele / Ela é / está<br><br>
+ Usamos para falar de estado, identidade e situação.
+ </p>
+ <button onclick="novaPergunta()">Voltar</button>
+ </div>`;
 }
 
-function falar(t){
-  const u=new SpeechSynthesisUtterance(t);
-  u.lang="en-US";
-  speechSynthesis.speak(u);
+/* =====================
+   PERGUNTAS
+===================== */
+function novaPergunta(){
+ if(perguntasRespondidas>=MAX_PERGUNTAS){
+   podeProva=true;
+   telaProva();
+   return;
+ }
+ erros=0;
+ const q = banco[indicePergunta % banco.length];
+ falar(q.en);
+ app.innerHTML=`
+ <div class="card">
+ <h2>${q.en}</h2>
+ <input id="resp" placeholder="Traduza">
+ <button onclick="ouvir()">🎤 Falar</button>
+ <button onclick="verificar()">Confirmar</button>
+ <div class="feedback"></div>
+ <p class="small">Pergunta ${perguntasRespondidas+1}/${MAX_PERGUNTAS}</p>
+ </div>`;
 }
 
-function iniciarFase(){
-  gerarBanco();
-  indice=0;
-  feitas=0;
-  acertos=0;
-  pergunta();
-}
-
-function pergunta(){
-  tentativas=0;
-  let p=perguntas[indice];
-  falar(p.en);
-  app.innerHTML=`
-  <div class="card">
-    <h2>${p.en}</h2>
-    <input id="resp" placeholder="Traduza para o português">
-    <button onclick="verificar()">Confirmar</button>
-    <div id="fb"></div>
-    <p>${feitas}/100</p>
-  </div>`;
+function normalizar(t){
+ return t.trim().toLowerCase();
 }
 
 function verificar(){
-  let r=document.getElementById("resp").value.toLowerCase();
-  let c=perguntas[indice].pt.toLowerCase();
-  tentativas++;
-  if(r===c){
-    acertos++;
-    feitas++;
-    indice++;
-    pergunta();
-  }else{
-    if(tentativas===4){
-      fb.innerHTML="<p>Dica: é uma tradução simples</p>";
-    }
-    if(tentativas===5){
-      feitas++;
-      indice++;
-      pergunta();
-    }else{
-      fb.innerHTML="<p class='wrong'>Tente novamente</p>";
-    }
-  }
-  if(feitas>=100){
-    prova();
-  }
+ const q = banco[indicePergunta % banco.length];
+ const r = normalizar(document.getElementById("resp").value);
+ const c = normalizar(q.pt);
+
+ if(r===c){
+   acertos++;
+   perguntasRespondidas++;
+   indicePergunta++;
+   app.querySelector(".feedback").innerHTML=`<div class="correct">✔ Correto</div>`;
+   setTimeout(novaPergunta,800);
+ } else {
+   erros++;
+   if(erros===4){
+     app.querySelector(".feedback").innerHTML=`<div class="wrong">Dica: é uma saudação comum</div>`;
+   } else if(erros>=5){
+     app.querySelector(".feedback").innerHTML=`
+       <div class="wrong">Resposta correta: ${q.pt}</div>
+       <button onclick="pular()">Pular</button>`;
+   } else {
+     app.querySelector(".feedback").innerHTML=`<div class="wrong">Tente novamente (${erros})</div>`;
+   }
+ }
 }
 
-function prova(){
-  provaTentativas++;
-  let score=0;
-  for(let i=0;i<30;i++){
-    if(Math.random()>0.5) score++;
-  }
-  if(score>=20){
-    app.innerHTML=`
-    <div class="card">
-      <h2 class="correct">Aprovado!</h2>
-      <p>Você pode seguir para a Fase 2</p>
-    </div>`;
-  }else{
-    if(provaTentativas<3){
-      iniciarFase();
-    }else{
-      indice=20;
-      iniciarFase();
-    }
-  }
+function pular(){
+ perguntasRespondidas++;
+ indicePergunta++;
+ novaPergunta();
 }
 
-login();
+/* =====================
+   PROVA
+===================== */
+function telaProva(){
+ emProva=true;
+ tentativaProva++;
+ acertos=0;
+ indicePergunta=0;
+ app.innerHTML=`
+ <div class="card">
+ <h2>Prova Final</h2>
+ <p>30 questões — mínimo 20 acertos</p>
+ <button onclick="perguntaProva()">Começar Prova</button>
+ </div>`;
+}
+
+function perguntaProva(){
+ if(indicePergunta>=30){
+   if(acertos>=20){
+     app.innerHTML=`<div class="card"><h2>🎉 Aprovado</h2></div>`;
+   } else {
+     if(tentativaProva<3){
+       app.innerHTML=`<div class="card"><h2>Reforço</h2><button onclick="novaPergunta()">Voltar</button></div>`;
+     } else {
+       perguntasRespondidas=Math.floor(MAX_PERGUNTAS*0.4);
+       novaPergunta();
+     }
+   }
+   return;
+ }
+ const q = banco[indicePergunta];
+ app.innerHTML=`
+ <div class="card">
+ <h2>${q.en}</h2>
+ <input id="resp">
+ <button onclick="verificarProva()">Confirmar</button>
+ </div>`;
+}
+
+function verificarProva(){
+ const q = banco[indicePergunta];
+ const r = normalizar(document.getElementById("resp").value);
+ if(r===normalizar(q.pt)) acertos++;
+ indicePergunta++;
+ perguntaProva();
+}
+
+/* ===================== */
+telaLogin();
 </script>
 </body>
 </html>
