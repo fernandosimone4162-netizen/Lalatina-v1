@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>LaLatina — Fases</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #0f172a;
+    color: #ffffff;
+}
+
+header {
+    padding: 20px;
+    background: #020617;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.container {
+    padding: 20px;
+    max-width: 500px;
+    margin: auto;
+}
+
+.phase {
+    background: #020617;
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.phase.locked {
+    opacity: 0.4;
+}
+
+.phase button {
+    background: #22c55e;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.phase.locked button {
+    background: #334155;
+    cursor: not-allowed;
+}
+
+.status {
+    font-size: 12px;
+    color: #94a3b8;
+}
+</style>
+</head>
+
+<body>
+
+<header>LaLatina — Fases</header>
+
+<div class="container" id="phaseList"></div>
+
+<script>
+/* ===========================
+   CARREGAMENTO DO USUÁRIO
+   =========================== */
+
+const user = JSON.parse(localStorage.getItem("lalatina_user"));
+
+if (!user) {
+    window.location.href = "index.html";
+}
+
+/* ===========================
+   CONFIGURAÇÕES GLOBAIS
+   =========================== */
+
+const TOTAL_FASES = 10;
+const MIN_PERGUNTAS = 100;
+const MAX_PERGUNTAS = 500;
+const QUESTOES_PROVA = 30;
+
+/* ===========================
+   INICIALIZA DADOS
+   =========================== */
+
+user.progresso = user.progresso || {};
+user.provas = user.provas || {};
+
+for (let i = 1; i <= TOTAL_FASES; i++) {
+    if (!user.progresso[i]) {
+        user.progresso[i] = {
+            respondidas: 0,
+            provaLiberada: false
+        };
+    }
+}
+
+/* ===========================
+   ALGORITMO DE LIBERAÇÃO
+   =========================== */
+
+function avaliarLiberacao(fase) {
+    const p = user.progresso[fase];
+    if (p.respondidas >= MIN_PERGUNTAS) {
+        // Algoritmo simples inicial (expansível)
+        if (p.respondidas >= Math.floor(Math.random() * (MAX_PERGUNTAS - MIN_PERGUNTAS + 1)) + MIN_PERGUNTAS) {
+            p.provaLiberada = true;
+        }
+    }
+}
+
+/* ===========================
+   RENDERIZA FASES
+   =========================== */
+
+const phaseList = document.getElementById("phaseList");
+
+for (let i = 1; i <= TOTAL_FASES; i++) {
+    avaliarLiberacao(i);
+
+    const div = document.createElement("div");
+    div.className = "phase";
+
+    const desbloqueada = i === 1 || user.provas[i - 1]?.aprovado;
+    if (!desbloqueada) div.classList.add("locked");
+
+    let statusTexto = "Treino";
+    if (user.provas[i]?.aprovado) {
+        statusTexto = user.provas[i].perfeito ? "Perfeito ⭐" : "Concluída";
+    } else if (user.progresso[i].provaLiberada) {
+        statusTexto = "Prova disponível";
+    }
+
+    div.innerHTML = `
+        <div>
+            <strong>Fase ${i}</strong><br>
+            <span class="status">${statusTexto}</span>
+        </div>
+        <button ${desbloqueada ? "" : "disabled"}>
+            Entrar
+        </button>
+    `;
+
+    div.querySelector("button").addEventListener("click", () => {
+        localStorage.setItem("fase_atual", i);
+        window.location.href = "treino.html";
+    });
+
+    phaseList.appendChild(div);
+}
+
+localStorage.setItem("lalatina_user", JSON.stringify(user));
+</script>
+
+</body>
+</html>
