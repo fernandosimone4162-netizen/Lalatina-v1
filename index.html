@@ -2,214 +2,218 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>LALATINA – Fase 1</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LALATINA</title>
 
 <style>
-body {
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: linear-gradient(135deg, #6a00ff, #9b00ff);
-  color: white;
+body{
+  margin:0;
+  font-family:Arial, sans-serif;
+  background:linear-gradient(180deg,#6d28d9,#4c1d95);
+  color:#fff;
 }
-
-.container {
-  max-width: 420px;
-  margin: auto;
-  padding: 20px;
+.app{max-width:420px;margin:auto;padding:20px;}
+.card{
+  background:#1e1b4b;
+  border-radius:18px;
+  padding:20px;
+  margin-top:30px;
+  box-shadow:0 0 30px rgba(0,0,0,.6);
 }
-
-.card {
-  background: rgba(0,0,0,0.35);
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 0 20px rgba(0,0,0,0.4);
+button{
+  width:100%;
+  padding:14px;
+  margin-top:14px;
+  border:none;
+  border-radius:12px;
+  background:#8b5cf6;
+  color:#fff;
+  font-size:16px;
 }
-
-h1, h2 {
-  text-align: center;
+input{
+  width:100%;
+  padding:14px;
+  margin-top:14px;
+  border-radius:12px;
+  border:none;
+  font-size:16px;
 }
-
-button {
-  width: 100%;
-  padding: 14px;
-  margin-top: 10px;
-  border: none;
-  border-radius: 8px;
-  background: #00ffcc;
-  font-size: 16px;
-  font-weight: bold;
-  cursor: pointer;
+.menu{
+  position:fixed;
+  top:10px;
+  left:10px;
+  font-size:24px;
+  cursor:pointer;
 }
-
-button:hover {
-  background: #00ddb3;
+.menuBox{
+  position:fixed;
+  top:50px;
+  left:10px;
+  background:#312e81;
+  padding:14px;
+  border-radius:12px;
+  display:none;
 }
-
-input {
-  width: 100%;
-  padding: 12px;
-  border-radius: 6px;
-  border: none;
-  margin-top: 10px;
-}
-
-.option {
-  background: rgba(255,255,255,0.1);
-  padding: 12px;
-  border-radius: 8px;
-  margin-top: 10px;
-  cursor: pointer;
-}
-
-.option:hover {
-  background: rgba(255,255,255,0.25);
-}
-
-.correct {
-  background: #00c853 !important;
-}
-
-.wrong {
-  background: #d50000 !important;
-}
-
-.hidden {
-  display: none;
-}
+.correct{color:#22c55e;font-weight:bold;}
+.wrong{color:#ef4444;}
 </style>
 </head>
 
 <body>
-
-<div class="container">
-
-<!-- LOGIN -->
-<div class="card" id="login">
-<h1>LALATINA</h1>
-<input id="name" placeholder="Seu nome">
-<button onclick="start()">Entrar</button>
+<div class="menu" onclick="toggleMenu()">☰</div>
+<div class="menuBox" id="menuBox">
+  <div onclick="mostrarToBe()">Verbo TO BE</div>
 </div>
 
-<!-- TREINO -->
-<div class="card hidden" id="train">
-<h2 id="question"></h2>
-<div id="options"></div>
-<p id="progress"></p>
-</div>
-
-<!-- PROVA -->
-<div class="card hidden" id="exam">
-<h2 id="examQuestion"></h2>
-<div id="examOptions"></div>
-<p id="examProgress"></p>
-</div>
-
-<!-- FINAL -->
-<div class="card hidden" id="end">
-<h1 id="result"></h1>
-<button onclick="location.reload()">Recomeçar</button>
-</div>
-
-</div>
+<div class="app" id="app"></div>
 
 <script>
-let user = "";
-let totalAnswered = 0;
-let correctAnswers = 0;
-let allowExam = false;
+let email="";
+let perguntas=[];
+let indice=0;
+let dificuldade=1;
+let tentativas=0;
+let feitas=0;
+let acertos=0;
+let provaTentativas=0;
 
-let examAnswered = 0;
-let examCorrect = 0;
-
-const questions = [];
-for (let i = 1; i <= 500; i++) {
-  questions.push({
-    q: i <= 100 ? "Escolha a tradução correta de: I am"
-               : i <= 300 ? "Qual forma correta do verbo to be para: You ___ happy"
-               : "Complete corretamente: They ___ studying",
-    options: i <= 100
-      ? ["Eu sou", "Eu fui", "Eu tenho"]
-      : i <= 300
-      ? ["is", "are", "am"]
-      : ["is", "are", "am"],
-    answer: i <= 100 ? 0 : i <= 300 ? 1 : 1
-  });
+function toggleMenu(){
+  const m=document.getElementById("menuBox");
+  m.style.display=m.style.display==="block"?"none":"block";
 }
 
-function start() {
-  user = document.getElementById("name").value.trim();
-  if (!user) return;
-  document.getElementById("login").classList.add("hidden");
-  document.getElementById("train").classList.remove("hidden");
-  nextTrain();
+function mostrarToBe(){
+  app.innerHTML=`
+  <div class="card">
+    <h2>Verbo TO BE</h2>
+    <p><strong>TO BE</strong> significa <b>ser</b> ou <b>estar</b>.</p>
+    <p>I am = eu sou / estou<br>
+       You are = você é / está<br>
+       He is / She is = ele / ela é ou está</p>
+    <p>Negativa: add <b>not</b><br>
+       I am not happy</p>
+    <button onclick="inicio()">Voltar</button>
+  </div>`;
 }
 
-function nextTrain() {
-  if (totalAnswered >= 100 && correctAnswers / totalAnswered >= 0.7) {
-    allowExam = true;
+function login(){
+  app.innerHTML=`
+  <div class="card">
+    <h2>LALATINA</h2>
+    <input placeholder="Digite seu e-mail" id="email">
+    <button onclick="entrar()">Entrar</button>
+  </div>`;
+}
+
+function entrar(){
+  email=document.getElementById("email").value;
+  if(!email.includes("@")) return;
+  inicio();
+}
+
+function inicio(){
+  app.innerHTML=`
+  <div class="card">
+    <h2>Olá, bem-vindo à Latina</h2>
+    <p>Desde que haja empenho, você terá uma boa experiência.</p>
+    <button onclick="iniciarFase()">Começar</button>
+  </div>`;
+}
+
+function gerarBanco(){
+  const base=[
+    ["Good morning","Bom dia"],
+    ["I am happy","Eu estou feliz"],
+    ["You are here","Você está aqui"],
+    ["She is ready","Ela está pronta"],
+    ["They are tired","Eles estão cansados"]
+  ];
+  for(let i=0;i<200;i++){
+    let b=base[i%base.length];
+    perguntas.push({
+      en:b[0],
+      pt:b[1]
+    });
   }
-
-  if (allowExam && totalAnswered >= Math.min(500, 100 + Math.floor(Math.random() * 200))) {
-    document.getElementById("train").classList.add("hidden");
-    document.getElementById("exam").classList.remove("hidden");
-    nextExam();
-    return;
-  }
-
-  const q = questions[totalAnswered];
-  document.getElementById("question").innerText = q.q;
-  const optDiv = document.getElementById("options");
-  optDiv.innerHTML = "";
-
-  q.options.forEach((opt, i) => {
-    const d = document.createElement("div");
-    d.className = "option";
-    d.innerText = opt;
-    d.onclick = () => {
-      totalAnswered++;
-      if (i === q.answer) correctAnswers++;
-      nextTrain();
-    };
-    optDiv.appendChild(d);
-  });
-
-  document.getElementById("progress").innerText =
-    `Respondidas: ${totalAnswered} | Acertos: ${correctAnswers}`;
 }
 
-function nextExam() {
-  if (examAnswered === 20) {
-    document.getElementById("exam").classList.add("hidden");
-    document.getElementById("end").classList.remove("hidden");
-    document.getElementById("result").innerText =
-      examCorrect >= 16
-      ? "Parabéns! Fase 1 concluída."
-      : "Você não passou. Tente novamente.";
-    return;
-  }
-
-  const q = questions[examAnswered + 200];
-  document.getElementById("examQuestion").innerText = q.q;
-  const optDiv = document.getElementById("examOptions");
-  optDiv.innerHTML = "";
-
-  q.options.forEach((opt, i) => {
-    const d = document.createElement("div");
-    d.className = "option";
-    d.innerText = opt;
-    d.onclick = () => {
-      examAnswered++;
-      if (i === q.answer) examCorrect++;
-      nextExam();
-    };
-    optDiv.appendChild(d);
-  });
-
-  document.getElementById("examProgress").innerText =
-    `Questão ${examAnswered + 1} de 20`;
+function falar(t){
+  const u=new SpeechSynthesisUtterance(t);
+  u.lang="en-US";
+  speechSynthesis.speak(u);
 }
+
+function iniciarFase(){
+  gerarBanco();
+  indice=0;
+  feitas=0;
+  acertos=0;
+  pergunta();
+}
+
+function pergunta(){
+  tentativas=0;
+  let p=perguntas[indice];
+  falar(p.en);
+  app.innerHTML=`
+  <div class="card">
+    <h2>${p.en}</h2>
+    <input id="resp" placeholder="Traduza para o português">
+    <button onclick="verificar()">Confirmar</button>
+    <div id="fb"></div>
+    <p>${feitas}/100</p>
+  </div>`;
+}
+
+function verificar(){
+  let r=document.getElementById("resp").value.toLowerCase();
+  let c=perguntas[indice].pt.toLowerCase();
+  tentativas++;
+  if(r===c){
+    acertos++;
+    feitas++;
+    indice++;
+    pergunta();
+  }else{
+    if(tentativas===4){
+      fb.innerHTML="<p>Dica: é uma tradução simples</p>";
+    }
+    if(tentativas===5){
+      feitas++;
+      indice++;
+      pergunta();
+    }else{
+      fb.innerHTML="<p class='wrong'>Tente novamente</p>";
+    }
+  }
+  if(feitas>=100){
+    prova();
+  }
+}
+
+function prova(){
+  provaTentativas++;
+  let score=0;
+  for(let i=0;i<30;i++){
+    if(Math.random()>0.5) score++;
+  }
+  if(score>=20){
+    app.innerHTML=`
+    <div class="card">
+      <h2 class="correct">Aprovado!</h2>
+      <p>Você pode seguir para a Fase 2</p>
+    </div>`;
+  }else{
+    if(provaTentativas<3){
+      iniciarFase();
+    }else{
+      indice=20;
+      iniciarFase();
+    }
+  }
+}
+
+login();
 </script>
-
 </body>
 </html>
