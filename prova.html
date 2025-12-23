@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>LaLatina — Prova</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #0f172a;
+    color: #fff;
+}
+
+header {
+    background: #020617;
+    padding: 15px;
+    text-align: center;
+    font-size: 18px;
+}
+
+.container {
+    max-width: 500px;
+    margin: auto;
+    padding: 20px;
+}
+
+.card {
+    background: #020617;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: none;
+    background: #2563eb;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+.success { color: #22c55e; margin-top: 10px; }
+.error { color: #ef4444; margin-top: 10px; }
+</style>
+</head>
+
+<body>
+
+<header id="title"></header>
+
+<div class="container">
+    <div class="card" id="game"></div>
+</div>
+
+<script>
+/* ==========================
+   CARREGAMENTO
+   ========================== */
+
+const user = JSON.parse(localStorage.getItem("lalatina_user"));
+const fase = Number(localStorage.getItem("fase_atual"));
+
+if (!user || !fase || !user.progresso[fase].provaLiberada) {
+    location.href = "fases.html";
+}
+
+document.getElementById("title").innerText = `Fase ${fase} — Prova`;
+
+/* ==========================
+   BANCO (MESMO DO TREINO)
+   ========================== */
+
+const banco = {
+    1: Array.from({length:100},(_,i)=>({q:`Basic sentence ${i+1}`})),
+    2: Array.from({length:100},(_,i)=>({q:`Simple question ${i+1}`})),
+    3: Array.from({length:100},(_,i)=>({q:`Verb to be sentence ${i+1}`})),
+    4: Array.from({length:100},(_,i)=>({q:`Present continuous ${i+1}`})),
+    5: Array.from({length:100},(_,i)=>({q:`Conversation phrase ${i+1}`})),
+    6: Array.from({length:100},(_,i)=>({q:`Intermediate sentence ${i+1}`})),
+    7: Array.from({length:100},(_,i)=>({q:`Advanced structure ${i+1}`})),
+    8: Array.from({length:100},(_,i)=>({q:`Conditional sentence ${i+1}`})),
+    9: Array.from({length:100},(_,i)=>({q:`Complex expression ${i+1}`})),
+    10: Array.from({length:100},(_,i)=>({q:`High difficulty sentence ${i+1}`}))
+};
+
+/* ==========================
+   SORTEIO DA PROVA
+   ========================== */
+
+const usadas = user.progresso[fase].usadas || [];
+const disponiveis = banco[fase]
+    .map((p,i)=>({p,i}))
+    .filter(x=>!usadas.includes(x.i));
+
+const prova = disponiveis
+    .sort(()=>Math.random()-0.5)
+    .slice(0,30);
+
+let indice = 0;
+let acertos = 0;
+
+/* ==========================
+   FUNÇÕES
+   ========================== */
+
+function respostaEmIngles(texto) {
+    return /^[a-zA-Z\s]+$/.test(texto);
+}
+
+function mostrarPergunta() {
+    if (indice >= prova.length) {
+        finalizar();
+        return;
+    }
+
+    document.getElementById("game").innerHTML = `
+        <p><strong>${prova[indice].p.q}</strong></p>
+        <input id="resp" placeholder="Digite sua resposta">
+        <button onclick="verificar()">Confirmar</button>
+        <div id="feedback"></div>
+    `;
+}
+
+function verificar() {
+    const r = document.getElementById("resp").value;
+
+    if (respostaEmIngles(r)) {
+        document.getElementById("feedback").innerHTML =
+            `<div class="error">Não responda em inglês.</div>`;
+        return;
+    }
+
+    acertos++;
+    indice++;
+    mostrarPergunta();
+}
+
+function finalizar() {
+    const passou = acertos >= 20;
+    const perfeito = acertos >= 25;
+
+    user.progresso[fase].aprovado = passou;
+    user.progresso[fase].perfeito = perfeito;
+
+    if (passou && fase < 10) {
+        user.progresso[fase + 1].desbloqueada = true;
+        localStorage.setItem("fase_atual", fase + 1);
+    }
+
+    /* Checagem da fase 11 secreta */
+    const todasPerfeitas = Object.keys(user.progresso)
+        .filter(f => f <= 10)
+        .every(f => user.progresso[f].perfeito);
+
+    if (todasPerfeitas) {
+        user.fase11 = true; // apenas preparado
+    }
+
+    localStorage.setItem("lalatina_user", JSON.stringify(user));
+
+    document.getElementById("game").innerHTML = `
+        <h3>Prova finalizada</h3>
+        <p>Acertos: ${acertos}/30</p>
+        <p>${passou ? "Aprovado ✅" : "Reprovado ❌"}</p>
+        ${perfeito ? "<p>⭐ Desempenho perfeito</p>" : ""}
+        <button onclick="location.href='fases.html'">Voltar</button>
+    `;
+}
+
+/* ==========================
+   INICIAR
+   ========================== */
+
+mostrarPergunta();
+</script>
+
+</body>
+</html>
