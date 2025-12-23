@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>LaLatina — Treino</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+    margin: 0;
+    font-family: Arial, Helvetica, sans-serif;
+    background: #0f172a;
+    color: #fff;
+}
+
+header {
+    background: #020617;
+    padding: 15px;
+    text-align: center;
+    font-size: 18px;
+}
+
+.container {
+    max-width: 500px;
+    margin: auto;
+    padding: 20px;
+}
+
+.card {
+    background: #020617;
+    border-radius: 12px;
+    padding: 20px;
+}
+
+input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: none;
+    font-size: 16px;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 8px;
+    border: none;
+    background: #2563eb;
+    color: #fff;
+    font-size: 16px;
+    cursor: pointer;
+}
+
+button.secondary {
+    background: #334155;
+}
+
+.success { color: #22c55e; margin-top: 10px; }
+.error { color: #ef4444; margin-top: 10px; }
+.hint { color: #94a3b8; font-size: 14px; margin-top: 10px; }
+
+.bot {
+    margin-top: 15px;
+    padding: 12px;
+    border-radius: 8px;
+    background: #020617;
+    border: 1px solid #1e293b;
+}
+</style>
+</head>
+
+<body>
+
+<header id="title"></header>
+
+<div class="container">
+    <div class="card" id="game"></div>
+</div>
+
+<script>
+/* ==========================
+   CARREGAMENTO DE DADOS
+   ========================== */
+
+const user = JSON.parse(localStorage.getItem("lalatina_user"));
+const fase = Number(localStorage.getItem("fase_atual"));
+
+if (!user || !fase) location.href = "fases.html";
+
+document.getElementById("title").innerText = `Fase ${fase} — Treino`;
+
+/* ==========================
+   CONFIGURAÇÕES
+   ========================== */
+
+const MIN = 100;
+const MAX = 500;
+
+/* ==========================
+   BANCO DE PERGUNTAS (BASE)
+   ========================== */
+/* Estrutura preparada para escalar até 500 */
+
+const banco = {
+    1: Array.from({length:100},(_,i)=>({
+        q:`Basic sentence ${i+1}`,
+        a:["exemplo"],
+        h:"Frase básica"
+    })),
+    2: Array.from({length:100},(_,i)=>({
+        q:`Simple question ${i+1}`,
+        a:["exemplo"],
+        h:"Pergunta simples"
+    })),
+    3: Array.from({length:100},(_,i)=>({
+        q:`Sentence with verb to be ${i+1}`,
+        a:["exemplo"],
+        h:"Verbo to be"
+    })),
+    4: Array.from({length:100},(_,i)=>({
+        q:`Present continuous sentence ${i+1}`,
+        a:["exemplo"],
+        h:"Ação em progresso"
+    })),
+    5: Array.from({length:100},(_,i)=>({
+        q:`Conversation phrase ${i+1}`,
+        a:["exemplo"],
+        h:"Conversação"
+    })),
+    6: Array.from({length:100},(_,i)=>({
+        q:`Intermediate sentence ${i+1}`,
+        a:["exemplo"],
+        h:"Intermediário"
+    })),
+    7: Array.from({length:100},(_,i)=>({
+        q:`Advanced structure ${i+1}`,
+        a:["exemplo"],
+        h:"Avançado"
+    })),
+    8: Array.from({length:100},(_,i)=>({
+        q:`Conditional sentence ${i+1}`,
+        a:["exemplo"],
+        h:"Condicional"
+    })),
+    9: Array.from({length:100},(_,i)=>({
+        q:`Complex expression ${i+1}`,
+        a:["exemplo"],
+        h:"Expressão complexa"
+    })),
+    10: Array.from({length:100},(_,i)=>({
+        q:`High difficulty sentence ${i+1}`,
+        a:["exemplo"],
+        h:"Alta dificuldade"
+    }))
+};
+
+/* ==========================
+   PROGRESSO
+   ========================== */
+
+user.progresso[fase].respondidas ||= 0;
+user.progresso[fase].usadas ||= [];
+
+let indice = user.progresso[fase].respondidas;
+
+/* ==========================
+   FUNÇÕES
+   ========================== */
+
+function normalizar(t) {
+    return t.toLowerCase().trim();
+}
+
+function respostaEmIngles(texto) {
+    return /^[a-zA-Z\s]+$/.test(texto);
+}
+
+function mostrarPergunta() {
+    const lista = banco[fase].filter((_,i)=>!user.progresso[fase].usadas.includes(i));
+
+    if (lista.length === 0 || user.progresso[fase].respondidas >= MAX) {
+        verificarProva();
+        return;
+    }
+
+    const idx = banco[fase].indexOf(lista[0]);
+    const p = banco[fase][idx];
+
+    const botAtivo = fase >= 5;
+
+    document.getElementById("game").innerHTML = `
+        <p><strong>${p.q}</strong></p>
+        <input id="resp" placeholder="Digite sua resposta">
+        <button onclick="verificar(${idx})">Confirmar</button>
+        ${botAtivo ? `<div class="bot">🤖 Bot ativo — dificuldade ${fase}</div>` : ""}
+        <div id="feedback"></div>
+    `;
+}
+
+function verificar(idx) {
+    const r = document.getElementById("resp").value;
+
+    if (respostaEmIngles(r)) {
+        document.getElementById("feedback").innerHTML =
+            `<div class="error">Não responda em inglês.</div>`;
+        return;
+    }
+
+    user.progresso[fase].respondidas++;
+    user.progresso[fase].usadas.push(idx);
+
+    localStorage.setItem("lalatina_user", JSON.stringify(user));
+
+    mostrarPergunta();
+}
+
+function verificarProva() {
+    if (user.progresso[fase].respondidas >= MIN) {
+        user.progresso[fase].provaLiberada = true;
+        localStorage.setItem("lalatina_user", JSON.stringify(user));
+        window.location.href = "prova.html";
+    } else {
+        document.getElementById("game").innerHTML =
+            `<p>Continue treinando...</p>`;
+    }
+}
+
+/* ==========================
+   INICIAR
+   ========================== */
+
+mostrarPergunta();
+</script>
+
+</body>
+</html>
