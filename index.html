@@ -2,233 +2,212 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>LALATINA</title>
+<title>LALATINA – Fase 1</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-* { box-sizing: border-box; }
 body {
   margin: 0;
   font-family: Arial, sans-serif;
-  background: linear-gradient(160deg, #6a00ff, #9b2cff);
-  color: #fff;
+  background: linear-gradient(135deg, #6a00ff, #9b00ff);
+  color: white;
 }
 
-.screen {
-  display: none;
-  min-height: 100vh;
+.container {
+  max-width: 420px;
+  margin: auto;
   padding: 20px;
 }
-
-.screen.active { display: block; }
 
 .card {
   background: rgba(0,0,0,0.35);
-  border-radius: 18px;
+  border-radius: 12px;
   padding: 20px;
-  max-width: 420px;
-  margin: auto;
-  box-shadow: 0 0 30px rgba(0,0,0,0.3);
+  box-shadow: 0 0 20px rgba(0,0,0,0.4);
+}
+
+h1, h2 {
+  text-align: center;
 }
 
 button {
   width: 100%;
   padding: 14px;
-  margin-top: 12px;
+  margin-top: 10px;
   border: none;
-  border-radius: 12px;
-  background: #ffffff;
-  color: #6a00ff;
+  border-radius: 8px;
+  background: #00ffcc;
   font-size: 16px;
   font-weight: bold;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #00ddb3;
 }
 
 input {
   width: 100%;
   padding: 12px;
-  border-radius: 10px;
+  border-radius: 6px;
   border: none;
   margin-top: 10px;
-  font-size: 16px;
 }
 
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+.option {
+  background: rgba(255,255,255,0.1);
+  padding: 12px;
+  border-radius: 8px;
+  margin-top: 10px;
+  cursor: pointer;
 }
 
-.menu {
-  position: absolute;
-  top: 60px;
-  left: 20px;
-  background: #2a0055;
-  border-radius: 12px;
-  padding: 10px;
+.option:hover {
+  background: rgba(255,255,255,0.25);
+}
+
+.correct {
+  background: #00c853 !important;
+}
+
+.wrong {
+  background: #d50000 !important;
+}
+
+.hidden {
   display: none;
-}
-
-.menu button {
-  background: none;
-  color: #fff;
-  border: none;
-  padding: 10px;
-  text-align: left;
-}
-
-.progress {
-  margin-top: 15px;
-  font-size: 14px;
-  opacity: 0.9;
 }
 </style>
 </head>
 
 <body>
 
+<div class="container">
+
 <!-- LOGIN -->
-<div class="screen active" id="login">
-  <div class="card">
-    <h2>Entrar na Latina</h2>
-    <button onclick="go('welcome')">Entrar com Google</button>
-  </div>
+<div class="card" id="login">
+<h1>LALATINA</h1>
+<input id="name" placeholder="Seu nome">
+<button onclick="start()">Entrar</button>
 </div>
 
-<!-- WELCOME -->
-<div class="screen" id="welcome">
-  <div class="card">
-    <h3>👋 Olá, bem-vindo à Latina</h3>
-    <p>Obrigado por preferir nossos serviços.  
-    Garantimos que, com empenho, você terá uma ótima experiência.</p>
-    <button onclick="startPhase()">Começar</button>
-  </div>
-</div>
-
-<!-- PHASE -->
-<div class="screen" id="phase">
-  <div class="topbar">
-    <button onclick="toggleMenu()">☰</button>
-    <span>Fase 1</span>
-  </div>
-
-  <div class="menu" id="menu">
-    <button onclick="openVerb()">📘 Verbo To Be</button>
-  </div>
-
-  <div class="card">
-    <h3 id="questionText">Ouça o áudio</h3>
-    <button onclick="playAudio()">🔊 Ouvir</button>
-
-    <input id="answer" placeholder="Digite a tradução">
-    <button onclick="voice()">🎙️ Responder por voz</button>
-    <button onclick="submit()">Responder</button>
-
-    <div class="progress" id="progress"></div>
-  </div>
-</div>
-
-<!-- VERB TO BE -->
-<div class="screen" id="verb">
-  <div class="card">
-    <h3>Verbo To Be</h3>
-    <p>
-      O verbo <b>to be</b> significa <b>ser</b> ou <b>estar</b>.  
-      Ele muda conforme a pessoa:
-      <br><br>
-      I am (eu sou/estou)  
-      You are (você é/está)  
-      He / She / It is (ele/ela é/está)  
-      We are (nós somos/estamos)  
-      They are (eles são/estão)
-    </p>
-    <button onclick="go('phase')">Voltar</button>
-  </div>
+<!-- TREINO -->
+<div class="card hidden" id="train">
+<h2 id="question"></h2>
+<div id="options"></div>
+<p id="progress"></p>
 </div>
 
 <!-- PROVA -->
-<div class="screen" id="exam">
-  <div class="card">
-    <h3>Prova Final</h3>
-    <p id="examQ"></p>
-    <input id="examA">
-    <button onclick="examAnswer()">Responder</button>
-  </div>
+<div class="card hidden" id="exam">
+<h2 id="examQuestion"></h2>
+<div id="examOptions"></div>
+<p id="examProgress"></p>
+</div>
+
+<!-- FINAL -->
+<div class="card hidden" id="end">
+<h1 id="result"></h1>
+<button onclick="location.reload()">Recomeçar</button>
+</div>
+
 </div>
 
 <script>
-let questionCount = 0;
-let difficulty = 1;
-let maxQuestions = 100 + Math.floor(Math.random() * 401);
-let examIndex = 0;
-let examScore = 0;
+let user = "";
+let totalAnswered = 0;
+let correctAnswers = 0;
+let allowExam = false;
 
-function go(id){
-  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+let examAnswered = 0;
+let examCorrect = 0;
+
+const questions = [];
+for (let i = 1; i <= 500; i++) {
+  questions.push({
+    q: i <= 100 ? "Escolha a tradução correta de: I am"
+               : i <= 300 ? "Qual forma correta do verbo to be para: You ___ happy"
+               : "Complete corretamente: They ___ studying",
+    options: i <= 100
+      ? ["Eu sou", "Eu fui", "Eu tenho"]
+      : i <= 300
+      ? ["is", "are", "am"]
+      : ["is", "are", "am"],
+    answer: i <= 100 ? 0 : i <= 300 ? 1 : 1
+  });
 }
 
-function toggleMenu(){
-  let m = document.getElementById('menu');
-  m.style.display = m.style.display === 'block' ? 'none' : 'block';
+function start() {
+  user = document.getElementById("name").value.trim();
+  if (!user) return;
+  document.getElementById("login").classList.add("hidden");
+  document.getElementById("train").classList.remove("hidden");
+  nextTrain();
 }
 
-function openVerb(){
-  go('verb');
-  document.getElementById('menu').style.display='none';
-}
-
-function startPhase(){
-  go('phase');
-  nextQuestion();
-}
-
-function playAudio(){
-  let u = new SpeechSynthesisUtterance("Good morning");
-  u.lang = "en-US";
-  speechSynthesis.speak(u);
-}
-
-function voice(){
-  alert("Resposta por voz simulada (UX real)");
-}
-
-function submit(){
-  questionCount++;
-  difficulty += Math.random() > 0.5 ? 1 : 0;
-  document.getElementById('progress').innerText =
-    questionCount + " / " + maxQuestions;
-
-  if(questionCount >= maxQuestions){
-    startExam();
-  } else {
-    nextQuestion();
+function nextTrain() {
+  if (totalAnswered >= 100 && correctAnswers / totalAnswered >= 0.7) {
+    allowExam = true;
   }
-}
 
-function nextQuestion(){
-  document.getElementById('answer').value = "";
-}
-
-function startExam(){
-  go('exam');
-  examIndex = 0;
-  examScore = 0;
-  nextExam();
-}
-
-function nextExam(){
-  if(examIndex >= 30){
-    alert(examScore >= 20 ? "Aprovado! Fase 2 desbloqueada." : "Reprovado. Reforço aplicado.");
+  if (allowExam && totalAnswered >= Math.min(500, 100 + Math.floor(Math.random() * 200))) {
+    document.getElementById("train").classList.add("hidden");
+    document.getElementById("exam").classList.remove("hidden");
+    nextExam();
     return;
   }
-  document.getElementById('examQ').innerText =
-    "Traduza: Good morning";
+
+  const q = questions[totalAnswered];
+  document.getElementById("question").innerText = q.q;
+  const optDiv = document.getElementById("options");
+  optDiv.innerHTML = "";
+
+  q.options.forEach((opt, i) => {
+    const d = document.createElement("div");
+    d.className = "option";
+    d.innerText = opt;
+    d.onclick = () => {
+      totalAnswered++;
+      if (i === q.answer) correctAnswers++;
+      nextTrain();
+    };
+    optDiv.appendChild(d);
+  });
+
+  document.getElementById("progress").innerText =
+    `Respondidas: ${totalAnswered} | Acertos: ${correctAnswers}`;
 }
 
-function examAnswer(){
-  examScore++;
-  examIndex++;
-  nextExam();
+function nextExam() {
+  if (examAnswered === 20) {
+    document.getElementById("exam").classList.add("hidden");
+    document.getElementById("end").classList.remove("hidden");
+    document.getElementById("result").innerText =
+      examCorrect >= 16
+      ? "Parabéns! Fase 1 concluída."
+      : "Você não passou. Tente novamente.";
+    return;
+  }
+
+  const q = questions[examAnswered + 200];
+  document.getElementById("examQuestion").innerText = q.q;
+  const optDiv = document.getElementById("examOptions");
+  optDiv.innerHTML = "";
+
+  q.options.forEach((opt, i) => {
+    const d = document.createElement("div");
+    d.className = "option";
+    d.innerText = opt;
+    d.onclick = () => {
+      examAnswered++;
+      if (i === q.answer) examCorrect++;
+      nextExam();
+    };
+    optDiv.appendChild(d);
+  });
+
+  document.getElementById("examProgress").innerText =
+    `Questão ${examAnswered + 1} de 20`;
 }
 </script>
 
